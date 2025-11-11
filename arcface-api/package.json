@@ -1,0 +1,27 @@
+{
+  "name": "arcface-api",
+  "version": "1.0.0",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.0",
+    "pgvector": "^0.2.1",
+    "onnxruntime-node": "~1.19.2",
+    "uuid": "^9.0.0",
+    "body-parser": "^1.20.2",
+    "jimp": "^1.6.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.0",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.6.0",
+    "@types/pg": "^8.11.6",
+    "@types/uuid": "^9.0.2",
+    "tsx": "^4.20.6"
+  }
+}
