@@ -4,7 +4,7 @@ A Node.js API for face recognition using ArcFace embeddings and SCRFD face detec
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 24+
 - Docker + Docker Compose
 - PostgreSQL (via Docker)
 
