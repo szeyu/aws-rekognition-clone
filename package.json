@@ -1,7 +1,7 @@
 {
   "name": "aws-rekognition-clone",
   "version": "1.0.0",
-  "description": "AWS Rekognition clone - Face recognition and analysis API using ONNX models (ArcFace, SCRFD) with PostgreSQL pgvector",
+  "description": "AWS Rekognition clone - Face recognition and analysis API using ONNX models (ArcFace, RetinaFace) with PostgreSQL pgvector",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
@@ -11,23 +11,23 @@
     "lint:fix": "eslint src --ext .ts --fix"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0",
+    "jimp": "^1.6.0",
+    "onnxruntime-node": "^1.23.2",
     "pg": "^8.11.0",
     "pgvector": "^0.2.1",
-    "onnxruntime-node": "~1.19.2",
-    "uuid": "^9.0.0",
-    "body-parser": "^1.20.2",
-    "jimp": "^1.6.0"
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.2.0",
-    "@types/express": "^4.17.21",
+    "@eslint/js": "^9.17.0",
+    "@types/express": "^5.0.5",
     "@types/node": "^24.0.0",
     "@types/pg": "^8.11.6",
-    "@types/uuid": "^9.0.2",
+    "@types/uuid": "^10.0.0",
+    "eslint": "^9.17.0",
     "tsx": "^4.20.6",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
-    "eslint": "^8.57.0"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.18.2"
   }
 }
