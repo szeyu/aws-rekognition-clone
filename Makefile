@@ -5,7 +5,7 @@ export
 
 # Install production Node dependencies only (for Docker/production)
 install:
-	npm ci --only=production
+	npm ci --omit=dev
 
 # Install all Node dependencies including dev (for local development)
 install-dev:
@@ -43,7 +43,7 @@ db:
 	docker compose -f docker-compose.yml up -d db
 
 # Run the API locally
-run: install db
+run: install-dev db
 	npm run dev
 
 # Build and start the full stack (API + Postgres) with Docker Compose
