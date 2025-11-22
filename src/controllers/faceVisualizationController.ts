@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { readImageAsBase64 } from "../services/imageService";
 import { detectAllFacesWithRetinaFace } from "../embedding";
 import { drawBoundingBoxes } from "../utils/visualizationUtils";
 import * as fs from "fs/promises";
@@ -10,7 +9,7 @@ import * as path from "path";
  * POST /api/visualize-faces
  *
  * Request body:
- *   - image_path: string (required) - Path to image file
+ *   - image_base64: string (required) - Base64-encoded image
  *   - show_landmarks: boolean (optional) - Draw facial landmarks (default: true)
  *   - show_confidence: boolean (optional) - Show confidence percentage (default: true)
  *   - box_width: number (optional) - Line width for boxes (default: 3)
@@ -29,25 +28,25 @@ export const visualizeFaces = async (req: Request, res: Response) => {
     );
 
     const {
-      image_path,
+      image_base64,
       show_landmarks = true,
       show_confidence = true,
       box_width = 3,
       save_to_file = true,
     } = req.body as {
-      image_path?: string;
+      image_base64?: string;
       show_landmarks?: boolean;
       show_confidence?: boolean;
       box_width?: number;
       save_to_file?: boolean;
     };
 
-    if (!image_path) {
-      return res.status(400).json({ error: "Missing image_path" });
+    if (!image_base64) {
+      return res.status(400).json({ error: "Missing image_base64" });
     }
 
-    // Read image from file path
-    const imageBase64 = await readImageAsBase64(image_path);
+    // Use provided base64 image
+    const imageBase64 = image_base64;
 
     // Detect all faces in the image using RetinaFace
     const faces = await detectAllFacesWithRetinaFace(imageBase64, defaultConfidence);

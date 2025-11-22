@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { readImageAsBase64 } from "../services/imageService";
 import { cropAndSaveFaces } from "../services/cropFacesService";
 
 /**
@@ -9,13 +8,13 @@ import { cropAndSaveFaces } from "../services/cropFacesService";
  */
 export const cropFaces = async (req: Request, res: Response) => {
   try {
-    const { image_path } = req.body as { image_path?: string };
-    if (!image_path) {
-      return res.status(400).json({ error: "Missing image_path" });
+    const { image_base64 } = req.body as { image_base64?: string };
+    if (!image_base64) {
+      return res.status(400).json({ error: "Missing image_base64" });
     }
 
-    // Read image as base64
-    const imageBase64 = await readImageAsBase64(image_path);
+    // Use provided base64 image
+    const imageBase64 = image_base64;
 
     // Detect faces, crop them, and save to output/cropped_faces/
     const faceCount = await cropAndSaveFaces(imageBase64);

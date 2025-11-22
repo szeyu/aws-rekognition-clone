@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { randomUUID } from "crypto";
 import {
-  prepareEmbeddingFromPath,
   readImageAsBase64,
   embeddingFromBase64,
+  ensureFaceDetected,
   saveImageToProjectData
 } from "../services/imageService";
 import { insertEmbedding, searchSimilarEmbeddings } from "../services/dbService";
@@ -11,11 +11,11 @@ import { getCroppedFacePaths, cropAndSaveFaces } from "../services/cropFacesServ
 
 export const storeEmbedding = async (req: Request, res: Response) => {
   try {
-    const { image_path } = req.body as { image_path?: string };
-    if (!image_path) return res.status(400).json({ error: "Missing image_path" });
+    const { image_base64 } = req.body as { image_base64?: string };
+    if (!image_base64) return res.status(400).json({ error: "Missing image_base64" });
 
-    // Step 1: Read image as base64
-    const imageBase64 = await readImageAsBase64(image_path);
+    // Step 1: Validate input is base64
+    const imageBase64 = image_base64;
 
     // Step 2: Detect faces using RetinaFace and crop to output/cropped_faces/
     // This clears the folder and saves all detected faces
@@ -74,19 +74,22 @@ export const storeEmbedding = async (req: Request, res: Response) => {
 
 export const compareEmbeddings = async (req: Request, res: Response) => {
   try {
-    const { image_path_A, image_path_B } = req.body as {
-      image_path_A?: string;
-      image_path_B?: string;
+    const { image_base64_A, image_base64_B } = req.body as {
+      image_base64_A?: string;
+      image_base64_B?: string;
     };
-    if (!image_path_A || !image_path_B) return res.status(400).json({ error: "Missing images" });
+    if (!image_base64_A || !image_base64_B) return res.status(400).json({ error: "Missing image_base64_A or image_base64_B" });
 
-    const [preparedA, preparedB] = await Promise.all([
-      prepareEmbeddingFromPath(image_path_A),
-      prepareEmbeddingFromPath(image_path_B)
+    // Validate faces exist and compute embeddings
+    await Promise.all([
+      ensureFaceDetected(image_base64_A),
+      ensureFaceDetected(image_base64_B)
     ]);
 
-    const embA = preparedA.embedding;
-    const embB = preparedB.embedding;
+    const [embA, embB] = await Promise.all([
+      embeddingFromBase64(image_base64_A),
+      embeddingFromBase64(image_base64_B)
+    ]);
 
     // cosine similarity
     const dot = embA.reduce((acc, v, i) => acc + v * embB[i], 0);
@@ -110,16 +113,16 @@ export const compareEmbeddings = async (req: Request, res: Response) => {
 
 export const searchEmbeddings = async (req: Request, res: Response) => {
   try {
-    const { image_path, top_k } = req.body as { image_path?: string; top_k?: number | string };
-    if (!image_path || top_k === undefined) return res.status(400).json({ error: "Missing params" });
+    const { image_base64, top_k } = req.body as { image_base64?: string; top_k?: number | string };
+    if (!image_base64 || top_k === undefined) return res.status(400).json({ error: "Missing image_base64 or top_k" });
 
     const limit = Number(top_k);
     if (!Number.isFinite(limit) || limit <= 0) {
       return res.status(400).json({ error: "Invalid top_k" });
     }
 
-    // Step 1: Read image as base64
-    const imageBase64 = await readImageAsBase64(image_path);
+    // Step 1: Validate input is base64
+    const imageBase64 = image_base64;
 
     // Step 2: Detect faces using RetinaFace and crop to output/cropped_faces/
     // This clears the folder and saves all detected faces

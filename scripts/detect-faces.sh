@@ -28,10 +28,23 @@ SAVE_CROPS="${2:-false}"
 CONFIDENCE="${3:-0.6}"
 API_URL="${4:-http://localhost:3000}"
 
+if [ ! -f "$IMAGE_PATH" ]; then
+  echo "Error: Image file not found: $IMAGE_PATH"
+  exit 1
+fi
+
+# Convert image to base64
+if command -v base64 > /dev/null 2>&1; then
+  IMAGE_BASE64=$(base64 < "$IMAGE_PATH" | tr -d '\n')
+else
+  echo "Error: base64 command not found"
+  exit 1
+fi
+
 curl -s -X POST "$API_URL/api/detect-faces" \
   -H "Content-Type: application/json" \
   -d "{
-    \"image_path\": \"$IMAGE_PATH\",
+    \"image_base64\": \"$IMAGE_BASE64\",
     \"save_crops\": $SAVE_CROPS,
     \"confidence_threshold\": $CONFIDENCE
   }" | jq -C '.'

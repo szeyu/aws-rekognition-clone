@@ -96,12 +96,12 @@ make lint-fix         # Auto-fix TypeScript code style issues
 - `imageController.ts`: `/image/:id`, `/list`, `/item/:id` - CRUD operations
 
 **Routes** (`src/routes.ts`):
-- POST `/api/detect-faces` - Detect faces with bounding boxes and landmarks
-- POST `/api/visualize-faces` - Detect faces and return image with drawn bounding boxes/landmarks
-- POST `/api/crop-faces` - Extract cropped face images from detected faces
-- POST `/api/store_embedding` - Detect face → Generate embedding → Store with image
-- POST `/api/compare` - Compare two images (cosine similarity + euclidean distance)
-- POST `/api/search` - Vector similarity search (top_k results)
+- POST `/api/detect-faces` - Accepts `image_base64` - Detect faces with bounding boxes and landmarks
+- POST `/api/visualize-faces` - Accepts `image_base64` - Return image with drawn bounding boxes/landmarks
+- POST `/api/crop-faces` - Accepts `image_base64` - Extract cropped face images from detected faces
+- POST `/api/store_embedding` - Accepts `image_base64` - Detect face → Generate embedding → Store with image
+- POST `/api/compare` - Accepts `image_base64_A`, `image_base64_B` - Compare two images (cosine similarity + euclidean distance)
+- POST `/api/search` - Accepts `image_base64` - Vector similarity search (top_k results)
 - GET `/api/image/:id` - Retrieve and save image to output/
 - GET `/api/list?limit=N` - List stored embeddings
 - DELETE `/api/item/:id` - Delete embedding by UUID
@@ -110,13 +110,14 @@ make lint-fix         # Auto-fix TypeScript code style issues
 - All face-processing endpoints throw `{code: "NO_FACE"}` errors → Returns `{"error": "no_face_detected"}` (400)
 - Face detection configured to reject images without faces (e.g., `examples/box.jpeg`)
 
-### File Paths & Storage
-- Working directory: Project root (where you run `make` commands)
-- Image paths in requests can be absolute or relative to project root
+### API Input Format
+- **All endpoints accept base64-encoded images** - no file paths needed!
+- Scripts handle file path → base64 conversion automatically
+- API is fully stateless and doesn't need file system access
 - ONNX models expected at `models/arcface.onnx` and `models/retinaface_resnet50.onnx`
-- Uploaded images stored in `project_data/` directory (mimics cloud storage like S3/OSS)
-- Retrieved images saved to `output/{id}.{ext}`
-- Docker mounts host home directory at `/host:ro` for read access to user files
+- Uploaded images stored in `project_data/` directory (temporary - will migrate to S3/MinIO)
+- Retrieved images saved to `output/{id}.{ext}` (temporary - will migrate to S3/MinIO)
+- **Docker does NOT mount home directory** - API accepts base64 only!
 
 ## Testing
 Use example images in `examples/` folder:
@@ -137,6 +138,8 @@ Example scripts in `scripts/` (run `make chmod-scripts` first):
 ```
 
 All scripts accept optional API URL as last parameter (default: http://localhost:3000).
+
+**Note:** Scripts accept file paths for convenience, but internally convert them to base64 before calling the API. The API itself only accepts base64-encoded images!
 
 ## Configuration
 

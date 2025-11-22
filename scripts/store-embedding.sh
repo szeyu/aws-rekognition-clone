@@ -15,12 +15,18 @@ if [ ! -f "$IMAGE_PATH" ]; then
   exit 1
 fi
 
-# Convert to absolute path
-ABS_PATH=$(cd "$(dirname "$IMAGE_PATH")" && pwd)/$(basename "$IMAGE_PATH")
+# Convert image to base64
+if command -v base64 > /dev/null 2>&1; then
+  # macOS/Linux
+  IMAGE_BASE64=$(base64 < "$IMAGE_PATH" | tr -d '\n')
+else
+  echo "Error: base64 command not found"
+  exit 1
+fi
 
 curl -X POST "${API_URL}/api/store_embedding" \
   -H "Content-Type: application/json" \
-  -d "{\"image_path\": \"${ABS_PATH}\"}"
+  -d "{\"image_base64\": \"${IMAGE_BASE64}\"}" | jq '.'
 
 echo ""
 

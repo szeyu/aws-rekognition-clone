@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { readImageAsBase64 } from "../services/imageService";
 import { getImageDimensions, cropImageRegion } from "../utils/imageUtils";
 import { detectAllFacesWithRetinaFace } from "../embedding";
 import * as fs from "fs/promises";
@@ -32,7 +31,7 @@ export interface FaceDetectionResponse {
  * POST /api/detect-faces
  *
  * Request body:
- * - image_path: string - Path to image file
+ * - image_base64: string - Base64-encoded image
  * - save_crops: boolean (optional) - Save cropped faces to output/cropped_faces/
  * - confidence_threshold: number (optional) - Minimum confidence threshold (0-1), default 0.6
  *
@@ -50,21 +49,21 @@ export const detectFaces = async (req: Request, res: Response) => {
     );
 
     const {
-      image_path,
+      image_base64,
       save_crops = false,
       confidence_threshold = defaultConfidence,
     } = req.body as {
-      image_path?: string;
+      image_base64?: string;
       save_crops?: boolean;
       confidence_threshold?: number;
     };
 
-    if (!image_path) {
-      return res.status(400).json({ error: "Missing image_path" });
+    if (!image_base64) {
+      return res.status(400).json({ error: "Missing image_base64" });
     }
 
-    // Read image from file path
-    const imageBase64 = await readImageAsBase64(image_path);
+    // Use provided base64 image
+    const imageBase64 = image_base64;
 
     // Get image dimensions
     const { width: imageWidth, height: imageHeight } =

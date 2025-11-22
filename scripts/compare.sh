@@ -16,13 +16,18 @@ if [ ! -f "$IMAGE_A" ] || [ ! -f "$IMAGE_B" ]; then
   exit 1
 fi
 
-# Convert to absolute paths
-ABS_A=$(cd "$(dirname "$IMAGE_A")" && pwd)/$(basename "$IMAGE_A")
-ABS_B=$(cd "$(dirname "$IMAGE_B")" && pwd)/$(basename "$IMAGE_B")
+# Convert images to base64
+if command -v base64 > /dev/null 2>&1; then
+  IMAGE_BASE64_A=$(base64 < "$IMAGE_A" | tr -d '\n')
+  IMAGE_BASE64_B=$(base64 < "$IMAGE_B" | tr -d '\n')
+else
+  echo "Error: base64 command not found"
+  exit 1
+fi
 
 curl -X POST "${API_URL}/api/compare" \
   -H "Content-Type: application/json" \
-  -d "{\"image_path_A\": \"${ABS_A}\", \"image_path_B\": \"${ABS_B}\"}"
+  -d "{\"image_base64_A\": \"${IMAGE_BASE64_A}\", \"image_base64_B\": \"${IMAGE_BASE64_B}\"}" | jq '.'
 
 echo ""
 

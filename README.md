@@ -81,9 +81,13 @@ Detect all faces in an image and return bounding boxes with facial landmarks (ey
 **POST** `/api/detect-faces`
 
 ```bash
+# API expects base64-encoded image
 curl -X POST http://localhost:3000/api/detect-faces \
   -H "Content-Type: application/json" \
-  -d '{"image_path": "/path/to/image.jpg"}'
+  -d '{"image_base64": "iVBORw0KGgoAAAANSUhEUg..."}'
+
+# Or use the script for convenience (handles base64 conversion):
+./scripts/detect-faces.sh examples/face1.jpeg
 ```
 
 **Response:**
@@ -113,13 +117,17 @@ Detect faces and return an image with bounding boxes and landmarks drawn on it.
 **POST** `/api/visualize-faces`
 
 ```bash
+# API expects base64-encoded image
 curl -X POST http://localhost:3000/api/visualize-faces \
   -H "Content-Type: application/json" \
-  -d '{"image_path": "/path/to/image.jpg", "show_landmarks": true, "show_confidence": true}'
+  -d '{"image_base64": "iVBORw0KGgoAAAANSUhEUg...", "show_landmarks": true, "show_confidence": true}'
+
+# Or use the script for convenience (handles base64 conversion):
+./scripts/visualize-faces.sh examples/face1.jpeg
 ```
 
 **Request Parameters:**
-- `image_path` (string, required): Path to the input image
+- `image_base64` (string, required): Base64-encoded image data
 - `show_landmarks` (boolean, optional): Draw facial landmarks (eyes, nose, mouth). Default: `true`
 - `show_confidence` (boolean, optional): Show confidence percentage on boxes. Default: `true`
 - `box_width` (number, optional): Line width for bounding boxes. Default: `3`
@@ -155,9 +163,13 @@ Extract cropped face images from detected faces in an image.
 **POST** `/api/crop-faces`
 
 ```bash
+# API expects base64-encoded image
 curl -X POST http://localhost:3000/api/crop-faces \
   -H "Content-Type: application/json" \
-  -d '{"image_path": "/path/to/image.jpg"}'
+  -d '{"image_base64": "iVBORw0KGgoAAAANSUhEUg..."}'
+
+# Or use the script for convenience (handles base64 conversion):
+./scripts/crop-faces.sh examples/face1.jpeg
 ```
 
 **Response:**
@@ -172,19 +184,31 @@ curl -X POST http://localhost:3000/api/crop-faces \
 ```
 
 ### Store Face Embedding
-Store a face embedding from an image file. Requires RetinaFace to detect at least one face.
+Store face embeddings from an image. Detects all faces, crops them, and stores each face separately with unique UUIDs.
 
 **POST** `/api/store_embedding`
 
 ```bash
+# API expects base64-encoded image
 curl -X POST http://localhost:3000/api/store_embedding \
   -H "Content-Type: application/json" \
-  -d '{"image_path": "/absolute/path/to/image.jpg"}'
+  -d '{"image_base64": "iVBORw0KGgoAAAANSUhEUg..."}'
+
+# Or use the script for convenience (handles base64 conversion):
+./scripts/store-embedding.sh examples/face1.jpeg
 ```
 
 **Response:**
 ```json
-{"id": "550e8400-e29b-41d4-a716-446655440000"}
+{
+  "total_faces": 2,
+  "stored": 2,
+  "failed": 0,
+  "results": [
+    {"face": "face_0", "id": "550e8400-e29b-41d4-a716-446655440000"},
+    {"face": "face_1", "id": "660e8400-e29b-41d4-a716-446655440001"}
+  ]
+}
 ```
 
 ### Compare Two Faces
@@ -193,9 +217,13 @@ Compare two face images and get similarity metrics.
 **POST** `/api/compare`
 
 ```bash
+# API expects base64-encoded images
 curl -X POST http://localhost:3000/api/compare \
   -H "Content-Type: application/json" \
-  -d '{"image_path_A": "/path/to/image1.jpg", "image_path_B": "/path/to/image2.jpg"}'
+  -d '{"image_base64_A": "iVBORw0KGgoAAAANSUhEUg...", "image_base64_B": "/9j/4AAQSkZJRgABA..."}'
+
+# Or use the script for convenience (handles base64 conversion):
+./scripts/compare.sh examples/face1.jpeg examples/face2.jpeg
 ```
 
 **Response:**
@@ -207,22 +235,42 @@ curl -X POST http://localhost:3000/api/compare \
 ```
 
 ### Search Similar Faces
-Find the most similar faces in the database.
+Find the most similar faces in the database. Detects all faces in the query image and searches for each face separately.
 
 **POST** `/api/search`
 
 ```bash
+# API expects base64-encoded image
 curl -X POST http://localhost:3000/api/search \
   -H "Content-Type: application/json" \
-  -d '{"image_path": "/path/to/query.jpg", "top_k": 5}'
+  -d '{"image_base64": "iVBORw0KGgoAAAANSUhEUg...", "top_k": 5}'
+
+# Or use the script for convenience (handles base64 conversion):
+./scripts/search.sh examples/face1.jpeg 5
 ```
 
 **Response:**
 ```json
-[
-  {"id": "550e8400-e29b-41d4-a716-446655440000", "cosine": 0.98},
-  {"id": "660e8400-e29b-41d4-a716-446655440001", "cosine": 0.92}
-]
+{
+  "total_faces": 2,
+  "searched": 2,
+  "failed": 0,
+  "results": [
+    {
+      "face": "face_0",
+      "matches": [
+        {"id": "550e8400-e29b-41d4-a716-446655440000", "cosine": 0.98},
+        {"id": "660e8400-e29b-41d4-a716-446655440001", "cosine": 0.92}
+      ]
+    },
+    {
+      "face": "face_1",
+      "matches": [
+        {"id": "770e8400-e29b-41d4-a716-446655440002", "cosine": 0.95}
+      ]
+    }
+  ]
+}
 ```
 
 ### Get Image by ID
@@ -275,7 +323,7 @@ curl -X DELETE http://localhost:3000/api/item/550e8400-e29b-41d4-a716-4466554400
 
 ## Using Scripts
 
-Convenience scripts are available in the `scripts/` folder. **Remember to run `make chmod-scripts` first** to make the scripts executable:
+Convenience scripts are available in the `scripts/` folder. **Scripts automatically handle base64 conversion** - you just provide file paths! Remember to run `make chmod-scripts` first to make the scripts executable:
 
 ```bash
 # Make scripts executable (run this first!)
@@ -369,8 +417,9 @@ This confirms that the RetinaFace face detector correctly rejects images without
 
 ## Notes
 
+- **Base64 API**: All API endpoints accept base64-encoded images only. Scripts handle the file → base64 conversion transparently.
 - **Face Detection**: All face recognition endpoints require RetinaFace to detect at least one face in the image. If no face is detected, the request fails with `{"error": "no_face_detected"}`.
-- **Image Paths**: Use absolute paths or paths relative to the project root directory. When using Docker, host files are mounted at `/host` for read access.
+- **Multi-Face Support**: `/api/store_embedding` and `/api/search` endpoints detect and process all faces in an image separately.
 - **Image Formats**: Supports JPEG, PNG, GIF, and WebP formats.
 - **Example Images**: The `examples/` folder contains sample face images (`face1.jpeg`, `face2.jpeg`, etc.) for testing, and `box.jpeg` to test face detection rejection.
 - **Storage**: Images are stored in the `project_data/` directory (mimics cloud storage like S3/OSS), with only file paths stored in the database.
@@ -421,12 +470,15 @@ If your images are not detecting faces:
 3. Ensure the image has a clear, front-facing face
 4. Verify the image format is supported (JPEG, PNG, GIF, WebP)
 
-### Docker Path Issues
+### ONNX Models Not Found
 
-When using Docker, remember that:
-- Your host home directory is mounted at `/host` (read-only)
-- Use paths like `/host/Users/yourname/Pictures/photo.jpg` to access files
-- Or use the `PROJECT_DATA_DIR` to store images uploaded via the API
+If you get errors about missing ONNX models:
+
+```bash
+make models  # Download arcface.onnx and retinaface_resnet50.onnx
+```
+
+Models are downloaded to the `models/` directory and are required for face detection and embedding generation.
 
 ## License
 

@@ -36,15 +36,20 @@ if [ ! -f "$IMAGE_PATH" ]; then
   exit 1
 fi
 
-# Convert to absolute path
-ABS_PATH=$(cd "$(dirname "$IMAGE_PATH")" && pwd)/$(basename "$IMAGE_PATH")
+# Convert image to base64
+if command -v base64 > /dev/null 2>&1; then
+  IMAGE_BASE64=$(base64 < "$IMAGE_PATH" | tr -d '\n')
+else
+  echo "Error: base64 command not found"
+  exit 1
+fi
 
 echo "Detecting faces and generating visualization..."
 
 # Call API
 RESPONSE=$(curl -s -X POST "${API_URL}/api/visualize-faces" \
   -H "Content-Type: application/json" \
-  -d "{\"image_path\": \"${ABS_PATH}\", \"show_landmarks\": ${SHOW_LANDMARKS}, \"show_confidence\": ${SHOW_CONFIDENCE}}")
+  -d "{\"image_base64\": \"${IMAGE_BASE64}\", \"show_landmarks\": ${SHOW_LANDMARKS}, \"show_confidence\": ${SHOW_CONFIDENCE}}")
 
 # Check for errors
 if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then

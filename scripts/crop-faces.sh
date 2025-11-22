@@ -10,8 +10,21 @@ if [ -z "$IMAGE_PATH" ]; then
   exit 1
 fi
 
+if [ ! -f "$IMAGE_PATH" ]; then
+  echo "Error: Image file not found: $IMAGE_PATH"
+  exit 1
+fi
+
+# Convert image to base64
+if command -v base64 > /dev/null 2>&1; then
+  IMAGE_BASE64=$(base64 < "$IMAGE_PATH" | tr -d '\n')
+else
+  echo "Error: base64 command not found"
+  exit 1
+fi
+
 curl -X POST "${API_URL}/api/crop-faces" \
   -H "Content-Type: application/json" \
-  -d "{\"image_path\": \"$IMAGE_PATH\"}" | jq '.'
+  -d "{\"image_base64\": \"$IMAGE_BASE64\"}" | jq '.'
 
 echo ""

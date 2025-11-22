@@ -23,16 +23,11 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       PORT: ${PORT}
       PROJECT_DATA_DIR: ${PROJECT_DATA_DIR}
-      # Host paths for path mapping
-      HOST_HOME: ${HOME}
-      HOST_PROJECT_DIR: ${HOST_PROJECT_DIR:-}
     ports:
       - "${PORT}:${PORT}"
     volumes:
-      # Mount the user's home directory so the service can access files from anywhere
-      # This allows accessing files from Downloads/, Desktop/, Documents/, etc.
-      - ${HOME}:/host:ro
-      # Mount output and project_data for write access
+      # Keep only output and project_data for temporary storage
+      # No home directory mount needed - API accepts base64!
       - ./output:/app/output
       - ./project_data:/app/project_data
     depends_on:
