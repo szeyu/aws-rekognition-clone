@@ -3,10 +3,12 @@ import { getImageDimensions, cropImageRegion } from "../utils/imageUtils";
 import { detectAllFacesWithRetinaFace } from "../embedding";
 import * as fs from "fs/promises";
 import * as path from "path";
+import { sendErrorResponse, validateBase64Image } from "../utils/responseHelpers";
+import { getDefaultConfidenceThreshold } from "../config/constants";
 
 export interface FaceDetectionResponse {
   faces: Array<{
-    boundingBox: {
+    bounding_box: {
       left: number;
       top: number;
       width: number;
@@ -19,11 +21,11 @@ export interface FaceDetectionResponse {
       y: number;
     }>;
   }>;
-  faceCount: number;
-  imageWidth: number;
-  imageHeight: number;
-  outputFolder?: string; // Present if save_crops is true
-  croppedFaces?: string[]; // Present if save_crops is true
+  face_count: number;
+  image_width: number;
+  image_height: number;
+  output_folder?: string; // Present if save_crops is true
+  cropped_faces?: string[]; // Present if save_crops is true
 }
 
 /**
@@ -44,23 +46,17 @@ export interface FaceDetectionResponse {
  */
 export const detectFaces = async (req: Request, res: Response) => {
   try {
-    const defaultConfidence = parseFloat(
-      process.env.FACE_DETECTION_CONFIDENCE_THRESHOLD || "0.6"
-    );
-
     const {
       image_base64,
       save_crops = false,
-      confidence_threshold = defaultConfidence,
+      confidence_threshold = getDefaultConfidenceThreshold(),
     } = req.body as {
       image_base64?: string;
       save_crops?: boolean;
       confidence_threshold?: number;
     };
 
-    if (!image_base64) {
-      return res.status(400).json({ error: "Missing image_base64" });
-    }
+    if (!validateBase64Image(res, image_base64)) return;
 
     // Use provided base64 image
     const imageBase64 = image_base64;
@@ -80,7 +76,7 @@ export const detectFaces = async (req: Request, res: Response) => {
 
     // Format response
     const faces = filteredFaces.map((face) => ({
-      boundingBox: {
+      bounding_box: {
         left: face.PixelBoundingBox.Left,
         top: face.PixelBoundingBox.Top,
         width: face.PixelBoundingBox.Width,
@@ -94,11 +90,16 @@ export const detectFaces = async (req: Request, res: Response) => {
       })),
     }));
 
+    // Check if any faces were detected
+    if (faces.length === 0) {
+      return res.status(400).json({ error: 'no_face_detected' });
+    }
+
     const response: FaceDetectionResponse = {
       faces,
-      faceCount: faces.length,
-      imageWidth,
-      imageHeight,
+      face_count: faces.length,
+      image_width: imageWidth,
+      image_height: imageHeight,
     };
 
     // Save cropped faces if requested
@@ -144,22 +145,12 @@ export const detectFaces = async (req: Request, res: Response) => {
         }
       }
 
-      response.outputFolder = outputDir;
-      response.croppedFaces = croppedFaces;
+      response.output_folder = outputDir;
+      response.cropped_faces = croppedFaces;
     }
 
     res.json(response);
   } catch (err: unknown) {
-    console.error(err);
-
-    const errorMessage = err instanceof Error ? err.message : undefined;
-    if (
-      (err && typeof err === "object" && "code" in err && err.code === "NO_FACE") ||
-      errorMessage?.includes("no face")
-    ) {
-      return res.status(400).json({ error: "no_face_detected" });
-    }
-
-    res.status(500).json({ error: "internal error", message: errorMessage });
+    sendErrorResponse(res, err);
   }
 };

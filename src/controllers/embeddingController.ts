@@ -8,11 +8,13 @@ import {
 } from "../services/imageService";
 import { insertEmbedding, searchSimilarEmbeddings } from "../services/dbService";
 import { getCroppedFacePaths, cropAndSaveFaces } from "../services/cropFacesService";
+import { sendErrorResponse, validateBase64Image } from "../utils/responseHelpers";
+import { getErrorMessage } from "../utils/errors";
 
 export const storeEmbedding = async (req: Request, res: Response) => {
   try {
     const { image_base64 } = req.body as { image_base64?: string };
-    if (!image_base64) return res.status(400).json({ error: "Missing image_base64" });
+    if (!validateBase64Image(res, image_base64)) return;
 
     // Step 1: Validate input is base64
     const imageBase64 = image_base64;
@@ -50,8 +52,7 @@ export const storeEmbedding = async (req: Request, res: Response) => {
 
         results.push({ face: faceName, id });
       } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : "unknown error";
-        errors.push({ face: faceName, error: errorMessage });
+        errors.push({ face: faceName, error: getErrorMessage(err) });
       }
     }
 
@@ -63,12 +64,7 @@ export const storeEmbedding = async (req: Request, res: Response) => {
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (err: unknown) {
-    if (err && typeof err === "object" && "code" in err && err.code === "NO_FACE") {
-      return res.status(400).json({ error: "no_face_detected" });
-    }
-     
-    console.error(err);
-    res.status(500).json({ error: "internal error" });
+    sendErrorResponse(res, err);
   }
 };
 
@@ -78,7 +74,8 @@ export const compareEmbeddings = async (req: Request, res: Response) => {
       image_base64_A?: string;
       image_base64_B?: string;
     };
-    if (!image_base64_A || !image_base64_B) return res.status(400).json({ error: "Missing image_base64_A or image_base64_B" });
+    if (!validateBase64Image(res, image_base64_A, "image_base64_A")) return;
+    if (!validateBase64Image(res, image_base64_B, "image_base64_B")) return;
 
     // Validate faces exist and compute embeddings
     await Promise.all([
@@ -102,19 +99,17 @@ export const compareEmbeddings = async (req: Request, res: Response) => {
 
     res.json({ cosine, euclidean });
   } catch (err: unknown) {
-    if (err && typeof err === "object" && "code" in err && err.code === "NO_FACE") {
-      return res.status(400).json({ error: "no_face_detected" });
-    }
-     
-    console.error(err);
-    res.status(500).json({ error: "internal error" });
+    sendErrorResponse(res, err);
   }
 };
 
 export const searchEmbeddings = async (req: Request, res: Response) => {
   try {
     const { image_base64, top_k } = req.body as { image_base64?: string; top_k?: number | string };
-    if (!image_base64 || top_k === undefined) return res.status(400).json({ error: "Missing image_base64 or top_k" });
+    if (!validateBase64Image(res, image_base64)) return;
+    if (top_k === undefined) {
+      return res.status(400).json({ error: "Missing top_k" });
+    }
 
     const limit = Number(top_k);
     if (!Number.isFinite(limit) || limit <= 0) {
@@ -151,8 +146,7 @@ export const searchEmbeddings = async (req: Request, res: Response) => {
 
         results.push({ face: faceName, matches });
       } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : "unknown error";
-        errors.push({ face: faceName, error: errorMessage });
+        errors.push({ face: faceName, error: getErrorMessage(err) });
       }
     }
 
@@ -164,14 +158,6 @@ export const searchEmbeddings = async (req: Request, res: Response) => {
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (err: unknown) {
-    if (err && typeof err === "object" && "code" in err && err.code === "NO_FACE") {
-      return res.status(400).json({ error: "no_face_detected" });
-    }
-     
-    console.error(err);
-    res.status(500).json({ error: "internal error" });
+    sendErrorResponse(res, err);
   }
 };
-
-
-

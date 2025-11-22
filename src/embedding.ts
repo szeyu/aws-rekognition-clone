@@ -1,28 +1,26 @@
 import ort = require("onnxruntime-node");
 import { Jimp } from "jimp";
-
-const ARC_FACE_MODEL = "./models/arcface.onnx";
-const RETINAFACE_MODEL = "./models/retinaface_resnet50.onnx";
+import { ARCFACE_INPUT_SIZE, MODEL_PATHS } from "./config/constants";
 
 type InferenceSession = Awaited<ReturnType<typeof ort.InferenceSession.create>>;
 let arcfaceSession: InferenceSession | null = null;
 
 export const initModels = async () => {
-  arcfaceSession = await ort.InferenceSession.create(ARC_FACE_MODEL);
+  arcfaceSession = await ort.InferenceSession.create(MODEL_PATHS.ARCFACE);
 
   // Load RetinaFace model (required)
   const { initRetinaFaceModel } = await import("./retinaface.js");
-  await initRetinaFaceModel(RETINAFACE_MODEL, "resnet50");
+  await initRetinaFaceModel(MODEL_PATHS.RETINAFACE, "resnet50");
 };
 
 // helper: decode base64 to tensor
 export const preprocessImage = async (base64: string) => {
   const buffer = Buffer.from(base64, "base64");
   const image = await Jimp.read(buffer);
-  await image.resize({ w: 112, h: 112 }); // ArcFace input size
+  await image.resize({ w: ARCFACE_INPUT_SIZE, h: ARCFACE_INPUT_SIZE });
 
   // Jimp is RGBA; we will extract RGB and normalize per channel
-  const data = new Float32Array(3 * 112 * 112);
+  const data = new Float32Array(3 * ARCFACE_INPUT_SIZE * ARCFACE_INPUT_SIZE);
   let ptr = 0;
   const { width, height, data: bitmapData } = image.bitmap;
   for (let y = 0; y < height; y += 1) {
@@ -67,7 +65,7 @@ export const computeEmbedding = async (preprocessed: Float32Array) => {
   if (!arcfaceSession) {
     throw new Error("ArcFace model not initialized");
   }
-  const tensor = new ort.Tensor("float32", preprocessed, [1, 3, 112, 112]);
+  const tensor = new ort.Tensor("float32", preprocessed, [1, 3, ARCFACE_INPUT_SIZE, ARCFACE_INPUT_SIZE]);
   const results = await arcfaceSession.run({ data: tensor });
   const firstKey = Object.keys(results)[0];
   const embedding = results[firstKey].data as Float32Array;

@@ -1,7 +1,7 @@
 include .env
 export
 
-.PHONY: install install-dev models dev db up down logs clean chmod-scripts reset run lint lint-fix
+.PHONY: install install-dev models dev db up down logs clean chmod-scripts reset run lint lint-fix test
 
 # Install production Node dependencies only (for Docker/production)
 install:
@@ -18,6 +18,10 @@ lint: install-dev
 # Lint and auto-fix TypeScript codebase
 lint-fix: install-dev
 	npm run lint:fix
+
+# Run all tests (unit tests + integration tests)
+test: install-dev
+	npm test
 
 # Download ONNX models locally into models/ (only if they don't exist)
 models:

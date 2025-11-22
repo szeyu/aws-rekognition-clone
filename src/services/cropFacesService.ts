@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { detectAllFacesWithRetinaFace } from "../embedding";
 import { cropImageRegion } from "../utils/imageUtils";
+import { NoFaceDetectedError } from "../utils/errors";
 
 const CROPPED_FACES_DIR = path.join(process.cwd(), "output", "cropped_faces");
 
@@ -39,7 +40,7 @@ export const cropAndSaveFaces = async (imageBase64: string): Promise<number> => 
   const faces = await detectAllFacesWithRetinaFace(imageBase64);
 
   if (faces.length === 0) {
-    throw Object.assign(new Error("no_face_detected"), { code: "NO_FACE" });
+    throw new NoFaceDetectedError();
   }
 
   // Ensure cropped_faces directory exists and is empty

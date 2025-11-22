@@ -17,4 +17,10 @@ const start = async () => {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 };
 
-start();
+// Only start server if this file is run directly (not imported for testing)
+if (require.main === module) {
+  start();
+}
+
+// Export app for testing
+export { app };

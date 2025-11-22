@@ -3,6 +3,8 @@ import { detectAllFacesWithRetinaFace } from "../embedding";
 import { drawBoundingBoxes } from "../utils/visualizationUtils";
 import * as fs from "fs/promises";
 import * as path from "path";
+import { sendErrorResponse, validateBase64Image } from "../utils/responseHelpers";
+import { getDefaultConfidenceThreshold } from "../config/constants";
 
 /**
  * Visualize faces endpoint - Returns image with bounding boxes drawn and saves to output folder
@@ -23,10 +25,6 @@ import * as path from "path";
  */
 export const visualizeFaces = async (req: Request, res: Response) => {
   try {
-    const defaultConfidence = parseFloat(
-      process.env.FACE_DETECTION_CONFIDENCE_THRESHOLD || "0.6"
-    );
-
     const {
       image_base64,
       show_landmarks = true,
@@ -41,15 +39,13 @@ export const visualizeFaces = async (req: Request, res: Response) => {
       save_to_file?: boolean;
     };
 
-    if (!image_base64) {
-      return res.status(400).json({ error: "Missing image_base64" });
-    }
+    if (!validateBase64Image(res, image_base64)) return;
 
     // Use provided base64 image
     const imageBase64 = image_base64;
 
     // Detect all faces in the image using RetinaFace
-    const faces = await detectAllFacesWithRetinaFace(imageBase64, defaultConfidence);
+    const faces = await detectAllFacesWithRetinaFace(imageBase64, getDefaultConfidenceThreshold());
 
     if (faces.length === 0) {
       return res.status(400).json({
@@ -91,7 +87,6 @@ export const visualizeFaces = async (req: Request, res: Response) => {
       output_path: outputPath,
     });
   } catch (err: unknown) {
-    console.error(err);
-    res.status(500).json({ error: "internal error" });
+    sendErrorResponse(res, err);
   }
 };

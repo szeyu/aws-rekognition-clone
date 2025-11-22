@@ -4,18 +4,27 @@ import { listImages, getImage, deleteImage } from "./controllers/imageController
 import { detectFaces } from "./controllers/faceDetectionController";
 import { visualizeFaces } from "./controllers/faceVisualizationController";
 import { cropFaces } from "./controllers/cropFacesController";
+import { validateBody } from "./middleware/validation";
+import {
+  detectFacesSchema,
+  visualizeFacesSchema,
+  cropFacesSchema,
+  storeEmbeddingSchema,
+  compareEmbeddingsSchema,
+  searchEmbeddingsSchema,
+} from "./schemas/requestSchemas";
 
 const router = express.Router();
 
-// Face detection and analysis
-router.post("/detect-faces", detectFaces);
-router.post("/visualize-faces", visualizeFaces);
-router.post("/crop-faces", cropFaces);
+// Face detection and analysis (with validation)
+router.post("/detect-faces", validateBody(detectFacesSchema), detectFaces);
+router.post("/visualize-faces", validateBody(visualizeFacesSchema), visualizeFaces);
+router.post("/crop-faces", validateBody(cropFacesSchema), cropFaces);
 
-// Face recognition endpoints
-router.post("/store_embedding", storeEmbedding);
-router.post("/compare", compareEmbeddings);
-router.post("/search", searchEmbeddings);
+// Face recognition endpoints (with validation)
+router.post("/store_embedding", validateBody(storeEmbeddingSchema), storeEmbedding);
+router.post("/compare", validateBody(compareEmbeddingsSchema), compareEmbeddings);
+router.post("/search", validateBody(searchEmbeddingsSchema), searchEmbeddings);
 
 // Image management
 router.get("/image/:id", getImage);

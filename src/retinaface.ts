@@ -242,41 +242,24 @@ export interface RetinaFaceDetection {
 }
 
 /**
- * Detect faces using RetinaFace
- * @param base64 - Base64 encoded image
- * @param visThreshold - Visibility threshold for filtering detections (default: 0.6)
- * @returns Array of face detections with bounding boxes, confidence scores, and landmarks
+ * Extract model outputs (loc, conf, landms) from ONNX session outputs
  */
-export const detectFacesRetinaFace = async (
-  base64: string,
-  visThreshold: number = VIS_THRESHOLD
-): Promise<RetinaFaceDetection[]> => {
-  if (!retinaSession) {
-    throw new Error("RetinaFace model not initialized");
-  }
+interface ModelOutputs {
+  loc: Float32Array;
+  conf: Float32Array;
+  landms: Float32Array;
+}
 
-  const imageSize = retinaConfig.image_size;
-  const { data: inputData, originalWidth, originalHeight } =
-    await preprocessForRetinaFace(base64, imageSize);
-
-  // Run inference
-  const tensor = new ort.Tensor("float32", inputData, [1, 3, imageSize, imageSize]);
-  const outputs = await retinaSession.run({ "input0": tensor });
-
-  // Extract outputs - RetinaFace outputs: loc, conf, landms
-  // The exact output names may vary, so we'll check the keys
+const extractModelOutputs = (outputs: Record<string, InstanceType<typeof ort.Tensor>>): ModelOutputs => {
   const outputKeys = Object.keys(outputs);
+  let loc: Float32Array | undefined;
+  let conf: Float32Array | undefined;
+  let landms: Float32Array | undefined;
 
-  // Typical RetinaFace output format:
+  // Find outputs by shape
   // - loc: [1, num_anchors, 4] - bounding box deltas
   // - conf: [1, num_anchors, 2] - background/face scores
   // - landms: [1, num_anchors, 10] - 5 landmark points (x, y) × 5
-
-  let loc: Float32Array;
-  let conf: Float32Array;
-  let landms: Float32Array;
-
-  // Find outputs by shape
   for (const key of outputKeys) {
     const tensor = outputs[key];
     const dims = tensor.dims;
@@ -290,16 +273,27 @@ export const detectFacesRetinaFace = async (
     }
   }
 
-  if (!loc! || !conf! || !landms!) {
+  if (!loc || !conf || !landms) {
     throw new Error("Failed to extract RetinaFace outputs");
   }
 
-  // Generate prior boxes
-  const priorbox = new PriorBox(retinaConfig, [imageSize, imageSize]);
-  const priors = priorbox.forward();
+  return { loc, conf, landms };
+};
 
-  // Convert flat arrays to 2D arrays
-  const numAnchors = priors.length;
+/**
+ * Convert flat Float32Arrays to 2D number arrays
+ */
+interface ConvertedArrays {
+  locArray: number[][];
+  confArray: number[][];
+  landmsArray: number[][];
+  scores: number[];
+}
+
+const convertFlatArraysTo2D = (
+  { loc, conf, landms }: ModelOutputs,
+  numAnchors: number
+): ConvertedArrays => {
   const locArray: number[][] = [];
   const confArray: number[][] = [];
   const landmsArray: number[][] = [];
@@ -326,11 +320,26 @@ export const detectFacesRetinaFace = async (
     ]);
   }
 
-  // Decode boxes and landmarks
-  const boxes = decode(locArray, priors, retinaConfig.variance);
-  const landmarks = decodeLandmarks(landmsArray, priors, retinaConfig.variance);
+  // Extract scores (face probability from confidence array)
+  const scores = confArray.map((c) => c[1]);
 
-  // Scale to pixel coordinates
+  return { locArray, confArray, landmsArray, scores };
+};
+
+/**
+ * Scale boxes and landmarks to pixel coordinates
+ */
+interface ScaledData {
+  scaledBoxes: number[][];
+  scaledLandmarks: number[][];
+}
+
+const scaleToPixelCoordinates = (
+  boxes: number[][],
+  landmarks: number[][],
+  originalWidth: number,
+  originalHeight: number
+): ScaledData => {
   const scale = [originalWidth, originalHeight, originalWidth, originalHeight];
   const scaledBoxes = boxes.map((box) => [
     box[0] * scale[0],
@@ -346,9 +355,23 @@ export const detectFacesRetinaFace = async (
     landm.map((val, i) => val * scale1[i])
   );
 
-  // Extract scores (face probability)
-  const scores = confArray.map((c) => c[1]);
+  return { scaledBoxes, scaledLandmarks };
+};
 
+/**
+ * Filter detections by confidence threshold and sort by score
+ */
+interface FilteredData {
+  boxes: number[][];
+  scores: number[];
+  landmarks: number[][];
+}
+
+const filterAndSortByConfidence = (
+  scaledBoxes: number[][],
+  scores: number[],
+  scaledLandmarks: number[][]
+): FilteredData => {
   // Filter by confidence threshold
   const indices: number[] = [];
   for (let i = 0; i < scores.length; i++) {
@@ -373,22 +396,47 @@ export const detectFacesRetinaFace = async (
   filteredScores = topK.map((i) => filteredScores[i]);
   filteredLandmarks = topK.map((i) => filteredLandmarks[i]);
 
+  return {
+    boxes: filteredBoxes,
+    scores: filteredScores,
+    landmarks: filteredLandmarks,
+  };
+};
+
+/**
+ * Apply Non-Maximum Suppression and return final indices
+ */
+const applyNonMaximumSuppression = (
+  boxes: number[][],
+  scores: number[]
+): number[] => {
   // Prepare for NMS: combine boxes and scores
-  const dets = filteredBoxes.map((box, i) => [...box, filteredScores[i]]);
+  const dets = boxes.map((box, i) => [...box, scores[i]]);
 
   // Apply NMS
   const keep = nms(dets, NMS_THRESHOLD);
 
   // Keep top-K after NMS
-  const finalKeep = keep.slice(0, KEEP_TOP_K);
+  return keep.slice(0, KEEP_TOP_K);
+};
 
-  // Filter by visibility threshold and format results
+/**
+ * Format final detection results
+ */
+const formatDetectionResults = (
+  indices: number[],
+  boxes: number[][],
+  scores: number[],
+  landmarks: number[][],
+  visThreshold: number
+): RetinaFaceDetection[] => {
   const detections: RetinaFaceDetection[] = [];
-  for (const idx of finalKeep) {
-    const confidence = filteredScores[idx];
+
+  for (const idx of indices) {
+    const confidence = scores[idx];
     if (confidence >= visThreshold) {
-      const bbox = filteredBoxes[idx];
-      const landm = filteredLandmarks[idx];
+      const bbox = boxes[idx];
+      const landm = landmarks[idx];
 
       detections.push({
         bbox: bbox,
@@ -405,6 +453,70 @@ export const detectFacesRetinaFace = async (
   }
 
   return detections;
+};
+
+/**
+ * Detect faces using RetinaFace
+ * @param base64 - Base64 encoded image
+ * @param visThreshold - Visibility threshold for filtering detections (default: 0.6)
+ * @returns Array of face detections with bounding boxes, confidence scores, and landmarks
+ */
+export const detectFacesRetinaFace = async (
+  base64: string,
+  visThreshold: number = VIS_THRESHOLD
+): Promise<RetinaFaceDetection[]> => {
+  if (!retinaSession) {
+    throw new Error("RetinaFace model not initialized");
+  }
+
+  const imageSize = retinaConfig.image_size;
+  const { data: inputData, originalWidth, originalHeight } =
+    await preprocessForRetinaFace(base64, imageSize);
+
+  // Step 1: Run inference
+  const tensor = new ort.Tensor("float32", inputData, [1, 3, imageSize, imageSize]);
+  const outputs = await retinaSession.run({ "input0": tensor });
+
+  // Step 2: Extract model outputs
+  const modelOutputs = extractModelOutputs(outputs);
+
+  // Step 3: Generate prior boxes
+  const priorbox = new PriorBox(retinaConfig, [imageSize, imageSize]);
+  const priors = priorbox.forward();
+
+  // Step 4: Convert flat arrays to 2D arrays
+  const { locArray, landmsArray, scores } = convertFlatArraysTo2D(
+    modelOutputs,
+    priors.length
+  );
+
+  // Step 5: Decode boxes and landmarks
+  const boxes = decode(locArray, priors, retinaConfig.variance);
+  const landmarks = decodeLandmarks(landmsArray, priors, retinaConfig.variance);
+
+  // Step 6: Scale to pixel coordinates
+  const { scaledBoxes, scaledLandmarks } = scaleToPixelCoordinates(
+    boxes,
+    landmarks,
+    originalWidth,
+    originalHeight
+  );
+
+  // Step 7: Filter by confidence and sort
+  const { boxes: filteredBoxes, scores: filteredScores, landmarks: filteredLandmarks } =
+    filterAndSortByConfidence(scaledBoxes, scores, scaledLandmarks);
+
+  // Step 8: Apply Non-Maximum Suppression
+  const finalIndices = applyNonMaximumSuppression(filteredBoxes, filteredScores);
+
+  // Step 9: Format and return final results
+  return formatDetectionResults(
+    finalIndices,
+    filteredBoxes,
+    filteredScores,
+    filteredLandmarks,
+    visThreshold
+  );
 };
 
 /**
