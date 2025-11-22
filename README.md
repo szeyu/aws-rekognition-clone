@@ -1,6 +1,18 @@
 # AWS Rekognition Clone
 
-An open-source AWS Rekognition alternative - A Node.js/TypeScript API for face recognition and analysis using ArcFace embeddings, SCRFD face detection, and PostgreSQL with pgvector for similarity search.
+An open-source AWS Rekognition alternative - A Node.js/TypeScript API for face recognition and analysis using ArcFace embeddings, RetinaFace face detection with landmarks, and PostgreSQL with pgvector for similarity search.
+
+## Features
+
+- ✅ **Face Detection** with 5 facial landmarks (eyes, nose, mouth) using RetinaFace ResNet50
+- ✅ **Face Recognition** with 512-dimensional embeddings using ArcFace ResNet100
+- ✅ **Face Visualization** - draw bounding boxes and landmarks on images
+- ✅ **Face Comparison** - compute similarity between two face images
+- ✅ **Vector Similarity Search** - find similar faces using PostgreSQL pgvector
+- ✅ **Face Cropping** - extract individual face images from group photos
+- ✅ **Multiple Image Formats** - supports JPEG, PNG, GIF, and WebP
+- ✅ **Docker Support** - easy deployment with Docker Compose
+- ✅ **TypeScript** - fully typed codebase with ESLint
 
 ## Requirements
 
@@ -36,18 +48,19 @@ make run
 make up
 
 # Or with Docker Compose directly
-docker compose -f arcface-api/docker-compose.yml up --build
+docker compose up --build
 ```
 
 - API runs on `http://localhost:3000/api`
 - Postgres runs on `localhost:5432` (DB: face_db)
-- ONNX models (ArcFace + SCRFD) are downloaded automatically during Docker build
+- ONNX models (ArcFace + RetinaFace) are downloaded automatically during Docker build
 
 ## Makefile Commands
 
 ```bash
-make install        # Install Node dependencies
-make models         # Download ONNX models
+make install        # Install Node dependencies (production only)
+make install-dev    # Install all dependencies including dev tools
+make models         # Download ONNX models (arcface.onnx, retinaface_resnet50.onnx)
 make chmod-scripts  # Make scripts executable
 make db             # Start PostgreSQL only (detached)
 make run            # Run API locally (requires db to be running)
@@ -56,17 +69,19 @@ make down           # Stop containers
 make logs           # View container logs
 make clean          # Remove containers and volumes
 make reset          # Clean and rebuild everything
+make lint           # Check TypeScript code style
+make lint-fix       # Auto-fix TypeScript code style issues
 ```
 
 ## API Endpoints
 
-### Analyze Face (⭐ NEW - AWS Rekognition DetectFaces Style)
-Analyze faces with attributes including age and gender - similar to AWS Rekognition's DetectFaces API.
+### Detect Faces
+Detect all faces in an image and return bounding boxes with facial landmarks (eyes, nose, mouth) sorted by area (largest first).
 
-**POST** `/api/analyze-face`
+**POST** `/api/detect-faces`
 
 ```bash
-curl -X POST http://localhost:3000/api/analyze-face \
+curl -X POST http://localhost:3000/api/detect-faces \
   -H "Content-Type: application/json" \
   -d '{"image_path": "/path/to/image.jpg"}'
 ```
@@ -74,48 +89,25 @@ curl -X POST http://localhost:3000/api/analyze-face \
 **Response:**
 ```json
 {
-  "FaceDetails": [{
+  "faces": [{
     "BoundingBox": {"Left": 0.234, "Top": 0.156, "Width": 0.312, "Height": 0.445},
     "Confidence": 99.8,
-    "AgeRange": {"Low": 25, "High": 35},
-    "Gender": {"Value": "Male", "Confidence": 98.5}
-  }],
-  "FaceCount": 2,
-  "ImageWidth": 1920,
-  "ImageHeight": 1080
-}
-```
-
-**Note:** Requires `genderage.onnx` model (run `make models` to download).
-
-### Detect Faces (Bounding Boxes Only)
-Detect all faces in an image and return bounding boxes sorted by area (largest first). Optionally crop and return face images.
-
-**POST** `/api/detect-faces`
-
-```bash
-curl -X POST http://localhost:3000/api/detect-faces \
-  -H "Content-Type: application/json" \
-  -d '{"image_path": "/path/to/image.jpg", "include_cropped_faces": false}'
-```
-
-**Response:**
-```json
-{
-  "FaceDetails": [{
-    "BoundingBox": {"Left": 0.234, "Top": 0.156, "Width": 0.312, "Height": 0.445},
-    "Confidence": 99.8,
-    "Area": 0.138,
     "PixelBoundingBox": {"Left": 450, "Top": 300, "Width": 600, "Height": 850},
-    "CroppedFaceBase64": "data:image/jpeg;base64,..."
+    "Landmarks": [
+      {"Type": "eyeLeft", "X": 0.3, "Y": 0.25, "PixelX": 576, "PixelY": 270},
+      {"Type": "eyeRight", "X": 0.45, "Y": 0.25, "PixelX": 864, "PixelY": 270},
+      {"Type": "nose", "X": 0.375, "Y": 0.35, "PixelX": 720, "PixelY": 378},
+      {"Type": "mouthLeft", "X": 0.32, "Y": 0.48, "PixelX": 614, "PixelY": 518},
+      {"Type": "mouthRight", "X": 0.43, "Y": 0.48, "PixelX": 826, "PixelY": 518}
+    ]
   }],
-  "FaceCount": 3,
-  "ImageWidth": 1920,
-  "ImageHeight": 1080
+  "face_count": 1,
+  "image_width": 1920,
+  "image_height": 1080
 }
 ```
 
-### Visualize Faces (⭐ NEW - Draw Bounding Boxes on Image)
+### Visualize Faces
 Detect faces and return an image with bounding boxes and landmarks drawn on it.
 
 **POST** `/api/visualize-faces`
@@ -143,7 +135,10 @@ curl -X POST http://localhost:3000/api/visualize-faces \
     "PixelBoundingBox": {"Left": 450, "Top": 300, "Width": 600, "Height": 850},
     "Landmarks": [
       {"Type": "eyeLeft", "X": 0.3, "Y": 0.25, "PixelX": 576, "PixelY": 270},
-      {"Type": "eyeRight", "X": 0.45, "Y": 0.25, "PixelX": 864, "PixelY": 270}
+      {"Type": "eyeRight", "X": 0.45, "Y": 0.25, "PixelX": 864, "PixelY": 270},
+      {"Type": "nose", "X": 0.375, "Y": 0.35, "PixelX": 720, "PixelY": 378},
+      {"Type": "mouthLeft", "X": 0.32, "Y": 0.48, "PixelX": 614, "PixelY": 518},
+      {"Type": "mouthRight", "X": 0.43, "Y": 0.48, "PixelX": 826, "PixelY": 518}
     ]
   }]
 }
@@ -154,8 +149,30 @@ The returned `image_base64` contains a JPEG image with:
 - Green dots marking facial landmarks (eyes, nose, mouth corners)
 - Confidence scores (if enabled)
 
+### Crop Faces
+Extract cropped face images from detected faces in an image.
+
+**POST** `/api/crop-faces`
+
+```bash
+curl -X POST http://localhost:3000/api/crop-faces \
+  -H "Content-Type: application/json" \
+  -d '{"image_path": "/path/to/image.jpg"}'
+```
+
+**Response:**
+```json
+{
+  "face_count": 2,
+  "cropped_faces": [
+    "data:image/jpeg;base64,/9j/4AAQSkZJRgABA...",
+    "data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUg..."
+  ]
+}
+```
+
 ### Store Face Embedding
-Store a face embedding from an image file. Requires SCRFD to detect at least one face.
+Store a face embedding from an image file. Requires RetinaFace to detect at least one face.
 
 **POST** `/api/store_embedding`
 
@@ -209,7 +226,7 @@ curl -X POST http://localhost:3000/api/search \
 ```
 
 ### Get Image by ID
-Retrieve an image by its UUID. Also saves the image to `arcface-api/output/{id}.{ext}`.
+Retrieve an image by its UUID. Also saves the image to `output/{id}.{ext}`.
 
 **GET** `/api/image/:id`
 
@@ -221,7 +238,7 @@ curl -X GET http://localhost:3000/api/image/550e8400-e29b-41d4-a716-446655440000
 ```json
 {
   "image_base64": "iVBORw0KGgo...",
-  "saved_to": "/path/to/arcface-api/output/550e8400-e29b-41d4-a716-446655440000.jpeg"
+  "saved_to": "/path/to/output/550e8400-e29b-41d4-a716-446655440000.jpeg"
 }
 ```
 
@@ -264,19 +281,14 @@ Convenience scripts are available in the `scripts/` folder. **Remember to run `m
 # Make scripts executable (run this first!)
 make chmod-scripts
 
-# ⭐ NEW: Analyze face with age/gender attributes
-./scripts/analyze-face.sh examples/face1.jpeg
-
-# Detect faces with bounding boxes
+# Detect faces with bounding boxes and landmarks
 ./scripts/detect-faces.sh examples/face1.jpeg
 
-# Detect faces and get cropped images
-./scripts/detect-faces.sh examples/face1.jpeg true
-
-# ⭐ NEW: Visualize faces with bounding boxes drawn on image
+# Visualize faces with bounding boxes drawn on image
 ./scripts/visualize-faces.sh examples/face1.jpeg
-./scripts/visualize-faces.sh examples/face1.jpeg output/result.jpg
-./scripts/visualize-faces.sh examples/face1.jpeg output/result.jpg false false
+
+# Crop faces and get individual face images
+./scripts/crop-faces.sh examples/face1.jpeg
 
 # Store an embedding
 ./scripts/store-embedding.sh examples/face1.jpeg
@@ -324,12 +336,12 @@ All scripts accept an optional API URL as the last parameter:
 
 # 6. Get and save an image
 ./scripts/get-image.sh abc-123-def
-# Image saved to: arcface-api/output/abc-123-def.jpeg
+# Image saved to: output/abc-123-def.jpeg
 ```
 
 ## Output Folder
 
-When you call `GET /api/image/:id`, the image is automatically saved to the `arcface-api/output/` folder with the UUID as the filename (e.g., `a69e09ac-e733-4c4e-8ea4-657e6a54d741.jpeg`). The image format (jpeg/png/gif/webp) is automatically detected from the stored image data.
+When you call `GET /api/image/:id`, the image is automatically saved to the `output/` folder with the UUID as the filename (e.g., `a69e09ac-e733-4c4e-8ea4-657e6a54d741.jpeg`). The image format (jpeg/png/gif/webp) is automatically detected from the stored image data.
 
 ## Testing Face Detection
 
@@ -345,11 +357,77 @@ To verify that face detection is working correctly, you can test with the `examp
 {"error": "no_face_detected"}
 ```
 
-This confirms that the SCRFD face detector correctly rejects images without faces.
+This confirms that the RetinaFace face detector correctly rejects images without faces.
+
+## Technology Stack
+
+- **Face Detection**: RetinaFace ResNet50 model for detecting faces with 5 facial landmarks (eyes, nose, mouth)
+- **Face Recognition**: ArcFace ResNet100 model for generating 512-dimensional face embeddings
+- **Vector Search**: PostgreSQL with pgvector extension for efficient similarity search
+- **Image Processing**: Jimp for image manipulation and ONNX Runtime for model inference
+- **API Framework**: Express.js with TypeScript
 
 ## Notes
 
-- **Face Detection**: All endpoints require SCRFD to detect at least one face in the image. If no face is detected, the request fails with `{"error": "no_face_detected"}`.
-- **Image Paths**: Use absolute paths or paths relative to where the API process is running (typically `arcface-api/` directory).
+- **Face Detection**: All face recognition endpoints require RetinaFace to detect at least one face in the image. If no face is detected, the request fails with `{"error": "no_face_detected"}`.
+- **Image Paths**: Use absolute paths or paths relative to the project root directory. When using Docker, host files are mounted at `/host` for read access.
 - **Image Formats**: Supports JPEG, PNG, GIF, and WebP formats.
 - **Example Images**: The `examples/` folder contains sample face images (`face1.jpeg`, `face2.jpeg`, etc.) for testing, and `box.jpeg` to test face detection rejection.
+- **Storage**: Images are stored in the `project_data/` directory (mimics cloud storage like S3/OSS), with only file paths stored in the database.
+
+## Configuration
+
+The project uses environment variables defined in `.env`:
+
+```bash
+# Database Configuration
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/face_db
+
+# PostgreSQL Settings (for Docker Compose)
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=face_db
+
+# API Configuration
+PORT=3000
+
+# Face Detection Configuration
+# Confidence threshold for face detection (0.0 - 1.0)
+# Lower values = more detections but more false positives
+# Higher values = fewer detections but higher accuracy
+FACE_DETECTION_CONFIDENCE_THRESHOLD=0.8
+
+# Project Data Directory (where uploaded images are stored)
+PROJECT_DATA_DIR=project_data
+```
+
+## Troubleshooting
+
+### Database Collation Errors
+
+If you encounter collation version mismatch errors when running `make up`:
+
+```bash
+make clean   # Remove containers and volumes
+make up      # Rebuild from scratch
+```
+
+### Face Not Detected
+
+If your images are not detecting faces:
+
+1. Check the confidence threshold in `.env` (default: 0.8)
+2. Lower the threshold for more sensitive detection (e.g., 0.6)
+3. Ensure the image has a clear, front-facing face
+4. Verify the image format is supported (JPEG, PNG, GIF, WebP)
+
+### Docker Path Issues
+
+When using Docker, remember that:
+- Your host home directory is mounted at `/host` (read-only)
+- Use paths like `/host/Users/yourname/Pictures/photo.jpg` to access files
+- Or use the `PROJECT_DATA_DIR` to store images uploaded via the API
+
+## License
+
+MIT License - feel free to use this project for any purpose.
