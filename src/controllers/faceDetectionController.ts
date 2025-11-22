@@ -109,7 +109,7 @@ export const detectFaces = async (req: Request, res: Response) => {
       // Clear and recreate output directory
       try {
         await fs.rm(outputDir, { recursive: true, force: true });
-      } catch (err) {
+      } catch {
         // Ignore error if directory doesn't exist
       }
       await fs.mkdir(outputDir, { recursive: true });

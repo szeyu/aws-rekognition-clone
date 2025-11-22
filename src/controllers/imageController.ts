@@ -19,7 +19,7 @@ export const getImage = async (req: Request, res: Response) => {
       image_path: imagePath
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
+     
     console.error(err);
     res.status(500).json({ error: "internal error" });
   }
@@ -41,13 +41,13 @@ export const deleteImage = async (req: Request, res: Response) => {
     try {
       await fs.unlink(imagePath);
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.warn(`Warning: Could not delete file ${imagePath}:`, err);
     }
 
     res.json({ deleted_id: id });
   } catch (err) {
-    // eslint-disable-next-line no-console
+     
     console.error(err);
     res.status(500).json({ error: "internal error" });
   }

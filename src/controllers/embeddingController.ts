@@ -3,7 +3,6 @@ import { randomUUID } from "crypto";
 import {
   prepareEmbeddingFromPath,
   readImageAsBase64,
-  ensureFaceDetected,
   embeddingFromBase64,
   saveImageToProjectData
 } from "../services/imageService";
@@ -67,7 +66,7 @@ export const storeEmbedding = async (req: Request, res: Response) => {
     if (err && typeof err === "object" && "code" in err && err.code === "NO_FACE") {
       return res.status(400).json({ error: "no_face_detected" });
     }
-    // eslint-disable-next-line no-console
+     
     console.error(err);
     res.status(500).json({ error: "internal error" });
   }
@@ -103,7 +102,7 @@ export const compareEmbeddings = async (req: Request, res: Response) => {
     if (err && typeof err === "object" && "code" in err && err.code === "NO_FACE") {
       return res.status(400).json({ error: "no_face_detected" });
     }
-    // eslint-disable-next-line no-console
+     
     console.error(err);
     res.status(500).json({ error: "internal error" });
   }
@@ -165,7 +164,7 @@ export const searchEmbeddings = async (req: Request, res: Response) => {
     if (err && typeof err === "object" && "code" in err && err.code === "NO_FACE") {
       return res.status(400).json({ error: "no_face_detected" });
     }
-    // eslint-disable-next-line no-console
+     
     console.error(err);
     res.status(500).json({ error: "internal error" });
   }
