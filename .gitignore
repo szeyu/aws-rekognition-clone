@@ -1,6 +1,11 @@
-# ArcFace API
-arcface-api/models
-arcface-api/output
+# AWS Rekognition Clone
+models/
+output/
+project_data/
+
+# Claude
+.playwright-mcp/
+.claude/
 
 # Logs
 logs

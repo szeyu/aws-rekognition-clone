@@ -1,6 +1,6 @@
-# ArcFace Face Vector API
+# AWS Rekognition Clone
 
-A Node.js API for face recognition using ArcFace embeddings and SCRFD face detection.
+An open-source AWS Rekognition alternative - A Node.js/TypeScript API for face recognition and analysis using ArcFace embeddings, SCRFD face detection, and PostgreSQL with pgvector for similarity search.
 
 ## Requirements
 
@@ -59,6 +59,100 @@ make reset          # Clean and rebuild everything
 ```
 
 ## API Endpoints
+
+### Analyze Face (⭐ NEW - AWS Rekognition DetectFaces Style)
+Analyze faces with attributes including age and gender - similar to AWS Rekognition's DetectFaces API.
+
+**POST** `/api/analyze-face`
+
+```bash
+curl -X POST http://localhost:3000/api/analyze-face \
+  -H "Content-Type: application/json" \
+  -d '{"image_path": "/path/to/image.jpg"}'
+```
+
+**Response:**
+```json
+{
+  "FaceDetails": [{
+    "BoundingBox": {"Left": 0.234, "Top": 0.156, "Width": 0.312, "Height": 0.445},
+    "Confidence": 99.8,
+    "AgeRange": {"Low": 25, "High": 35},
+    "Gender": {"Value": "Male", "Confidence": 98.5}
+  }],
+  "FaceCount": 2,
+  "ImageWidth": 1920,
+  "ImageHeight": 1080
+}
+```
+
+**Note:** Requires `genderage.onnx` model (run `make models` to download).
+
+### Detect Faces (Bounding Boxes Only)
+Detect all faces in an image and return bounding boxes sorted by area (largest first). Optionally crop and return face images.
+
+**POST** `/api/detect-faces`
+
+```bash
+curl -X POST http://localhost:3000/api/detect-faces \
+  -H "Content-Type: application/json" \
+  -d '{"image_path": "/path/to/image.jpg", "include_cropped_faces": false}'
+```
+
+**Response:**
+```json
+{
+  "FaceDetails": [{
+    "BoundingBox": {"Left": 0.234, "Top": 0.156, "Width": 0.312, "Height": 0.445},
+    "Confidence": 99.8,
+    "Area": 0.138,
+    "PixelBoundingBox": {"Left": 450, "Top": 300, "Width": 600, "Height": 850},
+    "CroppedFaceBase64": "data:image/jpeg;base64,..."
+  }],
+  "FaceCount": 3,
+  "ImageWidth": 1920,
+  "ImageHeight": 1080
+}
+```
+
+### Visualize Faces (⭐ NEW - Draw Bounding Boxes on Image)
+Detect faces and return an image with bounding boxes and landmarks drawn on it.
+
+**POST** `/api/visualize-faces`
+
+```bash
+curl -X POST http://localhost:3000/api/visualize-faces \
+  -H "Content-Type: application/json" \
+  -d '{"image_path": "/path/to/image.jpg", "show_landmarks": true, "show_confidence": true}'
+```
+
+**Request Parameters:**
+- `image_path` (string, required): Path to the input image
+- `show_landmarks` (boolean, optional): Draw facial landmarks (eyes, nose, mouth). Default: `true`
+- `show_confidence` (boolean, optional): Show confidence percentage on boxes. Default: `true`
+- `box_width` (number, optional): Line width for bounding boxes. Default: `3`
+
+**Response:**
+```json
+{
+  "image_base64": "/9j/4AAQSkZJRgABA...",
+  "face_count": 2,
+  "faces": [{
+    "BoundingBox": {"Left": 0.234, "Top": 0.156, "Width": 0.312, "Height": 0.445},
+    "Confidence": 99.8,
+    "PixelBoundingBox": {"Left": 450, "Top": 300, "Width": 600, "Height": 850},
+    "Landmarks": [
+      {"Type": "eyeLeft", "X": 0.3, "Y": 0.25, "PixelX": 576, "PixelY": 270},
+      {"Type": "eyeRight", "X": 0.45, "Y": 0.25, "PixelX": 864, "PixelY": 270}
+    ]
+  }]
+}
+```
+
+The returned `image_base64` contains a JPEG image with:
+- Red bounding boxes around detected faces
+- Green dots marking facial landmarks (eyes, nose, mouth corners)
+- Confidence scores (if enabled)
 
 ### Store Face Embedding
 Store a face embedding from an image file. Requires SCRFD to detect at least one face.
@@ -169,6 +263,20 @@ Convenience scripts are available in the `scripts/` folder. **Remember to run `m
 ```bash
 # Make scripts executable (run this first!)
 make chmod-scripts
+
+# ⭐ NEW: Analyze face with age/gender attributes
+./scripts/analyze-face.sh examples/face1.jpeg
+
+# Detect faces with bounding boxes
+./scripts/detect-faces.sh examples/face1.jpeg
+
+# Detect faces and get cropped images
+./scripts/detect-faces.sh examples/face1.jpeg true
+
+# ⭐ NEW: Visualize faces with bounding boxes drawn on image
+./scripts/visualize-faces.sh examples/face1.jpeg
+./scripts/visualize-faces.sh examples/face1.jpeg output/result.jpg
+./scripts/visualize-faces.sh examples/face1.jpeg output/result.jpg false false
 
 # Store an embedding
 ./scripts/store-embedding.sh examples/face1.jpeg

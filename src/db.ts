@@ -36,19 +36,21 @@ export const connectDB = async () => {
     // Try to refresh collation versions to fix version mismatches
     try {
       await adminClient.query("ALTER DATABASE template1 REFRESH COLLATION VERSION");
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Ignore - template1 might not need refreshing or might not be accessible
-      if (!e.message?.includes('does not exist')) {
-        console.warn("Warning: Could not refresh template1 collation:", e.message);
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      if (!errorMessage.includes('does not exist')) {
+        console.warn("Warning: Could not refresh template1 collation:", errorMessage);
       }
     }
     
     try {
       await adminClient.query("ALTER DATABASE postgres REFRESH COLLATION VERSION");
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Ignore - postgres might not need refreshing
-      if (!e.message?.includes('does not exist')) {
-        console.warn("Warning: Could not refresh postgres collation:", e.message);
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      if (!errorMessage.includes('does not exist')) {
+        console.warn("Warning: Could not refresh postgres collation:", errorMessage);
       }
     }
     
@@ -63,13 +65,15 @@ export const connectDB = async () => {
       try {
         await adminClient.query(`CREATE DATABASE ${dbName}`);
         console.log(`Database ${dbName} created`);
-      } catch (createError: any) {
-        if (createError?.code === 'XX000' || createError?.message?.includes('collation')) {
+      } catch (createError: unknown) {
+        const errorMessage = createError instanceof Error ? createError.message : String(createError);
+        const errorCode = createError && typeof createError === "object" && "code" in createError ? createError.code : undefined;
+        if (errorCode === 'XX000' || errorMessage.includes('collation')) {
           console.error("\n❌ Failed to create database due to collation version mismatch.");
           console.error("\n💡 Solution: Clean the old database volume and start fresh:");
           console.error("   make clean");
           console.error("   make up\n");
-          throw new Error(`Cannot create database: ${createError.message}`);
+          throw new Error(`Cannot create database: ${errorMessage}`);
         }
         throw createError;
       }
@@ -91,7 +95,7 @@ export const connectDB = async () => {
     CREATE TABLE IF NOT EXISTS face_embeddings (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       embedding vector(512),
-      image_base64 text,
+      image_path text,
       created_at timestamptz DEFAULT now()
     )
   `);

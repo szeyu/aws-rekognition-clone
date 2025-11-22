@@ -1,10 +1,22 @@
 import { client, vectorToSql } from "../db";
 
-export const insertEmbedding = async (embedding: number[], imageBase64: string): Promise<string> => {
-  const result = await client.query(
-    "INSERT INTO face_embeddings (embedding, image_base64) VALUES ($1, $2) RETURNING id",
-    [vectorToSql(embedding), imageBase64]
-  );
+export const insertEmbedding = async (
+  embedding: number[],
+  imagePath: string,
+  customId?: string
+): Promise<string> => {
+  let result;
+  if (customId) {
+    result = await client.query(
+      "INSERT INTO face_embeddings (id, embedding, image_path) VALUES ($1, $2, $3) RETURNING id",
+      [customId, vectorToSql(embedding), imagePath]
+    );
+  } else {
+    result = await client.query(
+      "INSERT INTO face_embeddings (embedding, image_path) VALUES ($1, $2) RETURNING id",
+      [vectorToSql(embedding), imagePath]
+    );
+  }
   return result.rows[0].id as string;
 };
 
@@ -17,9 +29,9 @@ export const listEmbeddings = async (limit: number) => {
 };
 
 export const getImageById = async (id: string): Promise<string | null> => {
-  const result = await client.query("SELECT image_base64 FROM face_embeddings WHERE id=$1", [id]);
+  const result = await client.query("SELECT image_path FROM face_embeddings WHERE id=$1", [id]);
   if (!result.rows.length) return null;
-  return result.rows[0].image_base64 as string;
+  return result.rows[0].image_path as string;
 };
 
 export const deleteEmbeddingById = async (id: string): Promise<boolean> => {

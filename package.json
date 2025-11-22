@@ -1,11 +1,14 @@
 {
-  "name": "arcface-api",
+  "name": "aws-rekognition-clone",
   "version": "1.0.0",
+  "description": "AWS Rekognition clone - Face recognition and analysis API using ONNX models (ArcFace, SCRFD) with PostgreSQL pgvector",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
-    "dev": "tsx watch src/server.ts"
+    "dev": "tsx watch src/server.ts",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -22,6 +25,9 @@
     "@types/node": "^24.0.0",
     "@types/pg": "^8.11.6",
     "@types/uuid": "^9.0.2",
-    "tsx": "^4.20.6"
+    "tsx": "^4.20.6",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0"
   }
 }

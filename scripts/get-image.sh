@@ -1,5 +1,5 @@
 #!/bin/bash
-# Get an image by ID (saves to output folder)
+# Get an image path by ID
 # Usage: ./scripts/get-image.sh <id> [api_url]
 
 ID="$1"

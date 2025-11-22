@@ -1,43 +1,71 @@
-.PHONY: install models dev db up down logs clean chmod-scripts
+include .env
+export
 
-# Install Node dependencies for the API (outside Docker)
+.PHONY: install install-dev models dev db up down logs clean chmod-scripts reset run lint lint-fix
+
+# Install production Node dependencies only (for Docker/production)
 install:
-	cd arcface-api && npm install
+	npm ci --only=production
 
-# Download ONNX models locally into arcface-api/models
+# Install all Node dependencies including dev (for local development)
+install-dev:
+	npm install
+
+# Lint TypeScript codebase (check only)
+lint: install-dev
+	npm run lint
+
+# Lint and auto-fix TypeScript codebase
+lint-fix: install-dev
+	npm run lint:fix
+
+# Download ONNX models locally into models/ (only if they don't exist)
 models:
-	mkdir -p arcface-api/models
-	curl -L -o arcface-api/models/arcface.onnx https://huggingface.co/onnxmodelzoo/arcfaceresnet100-8/resolve/main/arcfaceresnet100-8.onnx
-	curl -L -o arcface-api/models/scrfd.onnx https://huggingface.co/crj/dl-ws/resolve/main/scrfd_2.5g.onnx
+	@mkdir -p models
+	@if [ ! -f models/arcface.onnx ]; then \
+		echo "↓ Downloading arcface.onnx..."; \
+		curl -L -o models/arcface.onnx https://huggingface.co/onnxmodelzoo/arcfaceresnet100-8/resolve/main/arcfaceresnet100-8.onnx; \
+		echo "✓ arcface.onnx downloaded"; \
+	else \
+		echo "✓ arcface.onnx already exists, skipping download"; \
+	fi
+	@if [ ! -f models/retinaface_resnet50.onnx ]; then \
+		echo "↓ Downloading retinaface_resnet50.onnx..."; \
+		curl -L -o models/retinaface_resnet50.onnx https://storage.googleapis.com/ailia-models/retinaface/retinaface_resnet50.onnx; \
+		echo "✓ retinaface_resnet50.onnx downloaded"; \
+	else \
+		echo "✓ retinaface_resnet50.onnx already exists, skipping download"; \
+	fi
+	@echo "✓ All models ready"
 
 # Launch only the Postgres service via Docker Compose
 db:
-	docker compose -f arcface-api/docker-compose.yml up -d db
+	docker compose -f docker-compose.yml up -d db
 
-# Run the API locally with ts-node-dev (requires DATABASE_URL env)
+# Run the API locally
 run: install db
-	export DATABASE_URL=postgres://postgres:postgres@localhost:5432/face_db && \
-	cd arcface-api && npm run dev
+	npm run dev
 
 # Build and start the full stack (API + Postgres) with Docker Compose
 up:
-	docker compose -f arcface-api/docker-compose.yml up --build
+	HOST_PROJECT_DIR=$$(pwd) docker compose -f docker-compose.yml --env-file .env up --build
 
 # Stop and remove running containers
 down:
-	docker compose -f arcface-api/docker-compose.yml down
+	docker compose -f docker-compose.yml --env-file .env down
 
 # Tail logs from running containers
 logs:
-	docker compose -f arcface-api/docker-compose.yml logs -f
+	docker compose -f docker-compose.yml --env-file .env logs -f
 
 # Remove containers, networks, and volumes
 clean:
-	docker compose -f arcface-api/docker-compose.yml down -v
+	docker compose -f docker-compose.yml down -v
 
 # Clean and rebuild everything from scratch
 reset: clean
-	docker compose -f arcface-api/docker-compose.yml up --build
+	HOST_PROJECT_DIR=$$(pwd) docker compose -f docker-compose.yml --env-file .env up --build
 
+# Make all scripts executable
 chmod-scripts:
 	chmod +x scripts/*
