@@ -3,6 +3,17 @@ import { DetectedFace, Landmark } from "../embedding";
 import { base64ToJimp } from "./imageUtils";
 
 /**
+ * Color constants for visualization (Jimp RGBA format: 0xRRGGBBAA)
+ */
+export const COLORS = {
+  RED: 0xff0000ff,           // Red with full opacity - bounding boxes
+  GREEN: 0x00ff00ff,         // Green with full opacity - landmarks
+  BLUE: 0x0000ffff,          // Blue with full opacity
+  BLACK_TRANSPARENT: 0x000000aa, // Semi-transparent black - text backgrounds
+  WHITE: 0xffffffff,         // White with full opacity
+} as const;
+
+/**
  * Draw bounding boxes and landmarks on an image
  * @param base64Image - Base64 encoded image
  * @param faces - Array of detected faces with bounding boxes
@@ -20,7 +31,7 @@ export const drawBoundingBoxes = async (
   } = {}
 ): Promise<string> => {
   const {
-    boxColor = 0xff0000ff, // Red with full opacity
+    boxColor = COLORS.RED,
     boxWidth = 3,
     showLandmarks = true,
     showConfidence = true,
@@ -39,7 +50,7 @@ export const drawBoundingBoxes = async (
 
     // Draw landmarks if available and enabled
     if (showLandmarks && Landmarks) {
-      drawLandmarks(image, Landmarks, 0x00ff00ff, 4); // Green landmarks
+      drawLandmarks(image, Landmarks, COLORS.GREEN, 4);
     }
 
     // Draw confidence text if enabled
@@ -58,7 +69,7 @@ export const drawBoundingBoxes = async (
         textY,
         textWidth,
         textHeight,
-        0x000000aa
+        COLORS.BLACK_TRANSPARENT
       );
 
       // Note: Jimp doesn't have built-in text rendering with custom fonts easily

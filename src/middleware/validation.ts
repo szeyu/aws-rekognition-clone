@@ -5,7 +5,9 @@ import { z, ZodType } from "zod";
  * Validation middleware factory
  * Creates middleware that validates request body against a Zod schema
  */
-export const validateBody = <T extends ZodType>(schema: T) => {
+export const validateBody = <T extends ZodType>(
+  schema: T
+): ((req: Request, res: Response, next: NextFunction) => void) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
       // Validate request body

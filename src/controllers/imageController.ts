@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { promises as fs } from "fs";
 import { listEmbeddings, getImageById, deleteEmbeddingById } from "../services/dbService";
+import { sendErrorResponse } from "../utils/responseHelpers";
 
 export const listImages = async (req: Request, res: Response) => {
   try {
@@ -16,8 +17,7 @@ export const listImages = async (req: Request, res: Response) => {
     const rows = await listEmbeddings(limit);
     res.json(rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "internal error" });
+    sendErrorResponse(res, err);
   }
 };
 
@@ -36,9 +36,7 @@ export const getImage = async (req: Request, res: Response) => {
       saved_to: imagePath
     });
   } catch (err) {
-
-    console.error(err);
-    res.status(500).json({ error: "internal error" });
+    sendErrorResponse(res, err);
   }
 };
 
@@ -64,9 +62,7 @@ export const deleteImage = async (req: Request, res: Response) => {
 
     res.json({ deleted_id: id });
   } catch (err) {
-     
-    console.error(err);
-    res.status(500).json({ error: "internal error" });
+    sendErrorResponse(res, err);
   }
 };
 
