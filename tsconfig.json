@@ -9,5 +9,5 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "exclude": ["scripts", "node_modules", "dist", "vitest.config.ts"]
+  "exclude": ["scripts", "node_modules", "dist", "vitest.config.ts", "**/*.test.ts", "**/__tests__"]
 }

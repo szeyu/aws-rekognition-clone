@@ -34,6 +34,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["dist", "node_modules", "*.js", "models"],
+    ignores: ["dist", "node_modules", "*.js", "models", "**/*.test.ts", "**/__tests__"],
   }
 );
