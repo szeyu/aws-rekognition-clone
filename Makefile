@@ -52,7 +52,7 @@ run: install-dev db
 
 # Build and start the full stack (API + Postgres) with Docker Compose
 up:
-	HOST_PROJECT_DIR=$$(pwd) docker compose -f docker-compose.yml --env-file .env up --build
+	docker compose -f docker-compose.yml --env-file .env up --build
 
 # Stop and remove running containers
 down:
@@ -68,7 +68,7 @@ clean:
 
 # Clean and rebuild everything from scratch
 reset: clean
-	HOST_PROJECT_DIR=$$(pwd) docker compose -f docker-compose.yml --env-file .env up --build
+	docker compose -f docker-compose.yml --env-file .env up --build
 
 # Make all scripts executable
 chmod-scripts:
