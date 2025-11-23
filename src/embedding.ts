@@ -49,7 +49,7 @@ export const computeEmbedding = async (preprocessed: Float32Array) => {
 };
 
 /**
- * Detect all faces using RetinaFace (alternative to SCRFD)
+ * Detect all faces using RetinaFace
  * Returns faces with same interface as detectAllFaces
  */
 export const detectAllFacesWithRetinaFace = async (base64: string, visThreshold: number = 0.6): Promise<DetectedFace[]> => {
@@ -76,10 +76,48 @@ export const detectAllFacesWithRetinaFace = async (base64: string, visThreshold:
     convertRetinaFaceToDetectedFace(detection, originalWidth, originalHeight)
   );
 
-  // Sort by area (largest first) - same as SCRFD
+  // Sort by area (largest first)
   detectedFaces.sort((a: DetectedFace, b: DetectedFace) => b.Area - a.Area);
 
   return detectedFaces;
+};
+
+/**
+ * Compare two face embeddings and return similarity metrics
+ */
+export const compareEmbeddings = (
+  embedding1: number[],
+  embedding2: number[]
+): { cosineSimilarity: number; euclideanDistance: number } => {
+  if (embedding1.length !== embedding2.length) {
+    throw new Error('Embeddings must have the same dimension');
+  }
+
+  // Calculate cosine similarity
+  let dotProduct = 0;
+  let norm1 = 0;
+  let norm2 = 0;
+
+  for (let i = 0; i < embedding1.length; i++) {
+    dotProduct += embedding1[i] * embedding2[i];
+    norm1 += embedding1[i] * embedding1[i];
+    norm2 += embedding2[i] * embedding2[i];
+  }
+
+  const cosineSimilarity = dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+
+  // Calculate Euclidean distance
+  let sumSquares = 0;
+  for (let i = 0; i < embedding1.length; i++) {
+    const diff = embedding1[i] - embedding2[i];
+    sumSquares += diff * diff;
+  }
+  const euclideanDistance = Math.sqrt(sumSquares);
+
+  return {
+    cosineSimilarity,
+    euclideanDistance
+  };
 };
 
 
