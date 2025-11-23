@@ -1,13 +1,21 @@
 import { Jimp } from "jimp";
 
 /**
+ * Convert base64 encoded image to Jimp instance
+ * This is a common operation used throughout the codebase
+ */
+export const base64ToJimp = async (base64: string): Promise<Awaited<ReturnType<typeof Jimp.read>>> => {
+  const buffer = Buffer.from(base64, "base64");
+  return await Jimp.read(buffer);
+};
+
+/**
  * Get image dimensions from base64 encoded image
  */
 export const getImageDimensions = async (
   base64: string
 ): Promise<{ width: number; height: number }> => {
-  const buffer = Buffer.from(base64, "base64");
-  const image = await Jimp.read(buffer);
+  const image = await base64ToJimp(base64);
   return {
     width: image.bitmap.width,
     height: image.bitmap.height,
@@ -24,8 +32,7 @@ export const cropImageRegion = async (
   width: number,
   height: number
 ): Promise<string> => {
-  const buffer = Buffer.from(base64, "base64");
-  const image = await Jimp.read(buffer);
+  const image = await base64ToJimp(base64);
 
   // Ensure coordinates are within image bounds
   const clampedX = Math.max(0, Math.min(x, image.bitmap.width - 1));

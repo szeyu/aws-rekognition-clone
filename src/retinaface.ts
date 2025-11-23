@@ -1,5 +1,6 @@
 import ort = require("onnxruntime-node");
-import { Jimp } from "jimp";
+import type { DetectedFace, Landmark } from "./types/face";
+import { base64ToJimp } from "./utils/imageUtils";
 
 // RetinaFace model configurations
 export const cfg_mnet = {
@@ -205,8 +206,7 @@ export const preprocessForRetinaFace = async (
   base64: string,
   targetSize?: number
 ): Promise<{ data: Float32Array; originalWidth: number; originalHeight: number }> => {
-  const buffer = Buffer.from(base64, "base64");
-  const image = await Jimp.read(buffer);
+  const image = await base64ToJimp(base64);
   const originalWidth = image.bitmap.width;
   const originalHeight = image.bitmap.height;
 
@@ -522,29 +522,6 @@ export const detectFacesRetinaFace = async (
 /**
  * Convert RetinaFace detections to the standard DetectedFace format
  */
-export interface DetectedFace {
-  BoundingBox: {
-    Left: number;
-    Top: number;
-    Width: number;
-    Height: number;
-  };
-  Confidence: number;
-  Area: number;
-  PixelBoundingBox: {
-    Left: number;
-    Top: number;
-    Width: number;
-    Height: number;
-  };
-  Landmarks?: Array<{
-    Type: string;
-    X: number;
-    Y: number;
-    PixelX: number;
-    PixelY: number;
-  }>;
-}
 
 export const convertRetinaFaceToDetectedFace = (
   detection: RetinaFaceDetection,
@@ -556,7 +533,7 @@ export const convertRetinaFaceToDetectedFace = (
   const height = y2 - y1;
 
   const landmarkTypes = ["eyeLeft", "eyeRight", "nose", "mouthLeft", "mouthRight"];
-  const landmarks = detection.landmarks.map(([x, y], i) => ({
+  const landmarks: Landmark[] = detection.landmarks.map(([x, y], i) => ({
     Type: landmarkTypes[i],
     X: x / imageWidth,
     Y: y / imageHeight,

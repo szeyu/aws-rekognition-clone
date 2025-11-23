@@ -1,6 +1,10 @@
 import ort = require("onnxruntime-node");
-import { Jimp } from "jimp";
 import { ARCFACE_INPUT_SIZE, MODEL_PATHS } from "./config/constants";
+import type { DetectedFace } from "./types/face";
+import { base64ToJimp } from "./utils/imageUtils";
+
+// Re-export types for backward compatibility
+export type { DetectedFace, Landmark } from "./types/face";
 
 type InferenceSession = Awaited<ReturnType<typeof ort.InferenceSession.create>>;
 let arcfaceSession: InferenceSession | null = null;
@@ -15,8 +19,7 @@ export const initModels = async () => {
 
 // helper: decode base64 to tensor
 export const preprocessImage = async (base64: string) => {
-  const buffer = Buffer.from(base64, "base64");
-  const image = await Jimp.read(buffer);
+  const image = await base64ToJimp(base64);
   await image.resize({ w: ARCFACE_INPUT_SIZE, h: ARCFACE_INPUT_SIZE });
 
   // Jimp is RGBA; we will extract RGB and normalize per channel
@@ -33,33 +36,6 @@ export const preprocessImage = async (base64: string) => {
   }
   return data;
 };
-
-
-export interface Landmark {
-  Type: string;  // "eyeLeft", "eyeRight", "nose", "mouthLeft", "mouthRight"
-  X: number;     // Normalized [0, 1]
-  Y: number;     // Normalized [0, 1]
-  PixelX: number;  // Absolute pixel position
-  PixelY: number;  // Absolute pixel position
-}
-
-export interface DetectedFace {
-  BoundingBox: {
-    Left: number;
-    Top: number;
-    Width: number;
-    Height: number;
-  };
-  Confidence: number;
-  Area: number;
-  PixelBoundingBox: {
-    Left: number;
-    Top: number;
-    Width: number;
-    Height: number;
-  };
-  Landmarks?: Landmark[];
-}
 
 export const computeEmbedding = async (preprocessed: Float32Array) => {
   if (!arcfaceSession) {
@@ -88,8 +64,7 @@ export const detectAllFacesWithRetinaFace = async (base64: string, visThreshold:
   }
 
   // Get original image dimensions
-  const buffer = Buffer.from(base64, "base64");
-  const originalImage = await Jimp.read(buffer);
+  const originalImage = await base64ToJimp(base64);
   const originalWidth = originalImage.bitmap.width;
   const originalHeight = originalImage.bitmap.height;
 

@@ -1,5 +1,6 @@
 import { Jimp } from "jimp";
 import { DetectedFace, Landmark } from "../embedding";
+import { base64ToJimp } from "./imageUtils";
 
 /**
  * Draw bounding boxes and landmarks on an image
@@ -26,8 +27,7 @@ export const drawBoundingBoxes = async (
   } = options;
 
   // Decode base64 image
-  const buffer = Buffer.from(base64Image, "base64");
-  const image = await Jimp.read(buffer);
+  const image = await base64ToJimp(base64Image);
 
   // Draw each face
   for (const face of faces) {
