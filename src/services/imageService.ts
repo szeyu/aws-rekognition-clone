@@ -53,12 +53,3 @@ export const saveImageToProjectData = async (imagePath: string, uuid: string): P
 
   return savedPath;
 };
-
-export const prepareEmbeddingFromPath = async (imagePath: string) => {
-  const imageBase64 = await readImageAsBase64(imagePath);
-  await ensureFaceDetected(imageBase64);
-  const embedding = await embeddingFromBase64(imageBase64);
-  return { imageBase64, embedding };
-};
-
-

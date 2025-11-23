@@ -1,6 +1,7 @@
 import ort = require("onnxruntime-node");
 import type { DetectedFace, Landmark } from "./types/face";
 import { base64ToJimp } from "./utils/imageUtils";
+import { RETINAFACE } from "./config/constants";
 
 // RetinaFace model configurations
 export const cfg_mnet = {
@@ -21,12 +22,8 @@ export const cfg_re50 = {
   image_size: 840,
 };
 
-// RetinaFace detection parameters
-const CONFIDENCE_THRESHOLD = 0.02;
-const TOP_K = 5000;
-const NMS_THRESHOLD = 0.4;
-const KEEP_TOP_K = 750;
-const VIS_THRESHOLD = 0.6;
+// RetinaFace detection parameters (imported from config/constants.ts)
+// Use RETINAFACE.* constants instead of local constants
 
 type InferenceSession = Awaited<ReturnType<typeof ort.InferenceSession.create>>;
 let retinaSession: InferenceSession | null = null;
@@ -375,7 +372,7 @@ const filterAndSortByConfidence = (
   // Filter by confidence threshold
   const indices: number[] = [];
   for (let i = 0; i < scores.length; i++) {
-    if (scores[i] > CONFIDENCE_THRESHOLD) {
+    if (scores[i] > RETINAFACE.CONFIDENCE_THRESHOLD) {
       indices.push(i);
     }
   }
@@ -391,7 +388,7 @@ const filterAndSortByConfidence = (
     .map((item) => item.idx);
 
   // Keep top-K before NMS
-  const topK = sortedIndices.slice(0, TOP_K);
+  const topK = sortedIndices.slice(0, RETINAFACE.TOP_K);
   filteredBoxes = topK.map((i) => filteredBoxes[i]);
   filteredScores = topK.map((i) => filteredScores[i]);
   filteredLandmarks = topK.map((i) => filteredLandmarks[i]);
@@ -414,10 +411,10 @@ const applyNonMaximumSuppression = (
   const dets = boxes.map((box, i) => [...box, scores[i]]);
 
   // Apply NMS
-  const keep = nms(dets, NMS_THRESHOLD);
+  const keep = nms(dets, RETINAFACE.NMS_THRESHOLD);
 
   // Keep top-K after NMS
-  return keep.slice(0, KEEP_TOP_K);
+  return keep.slice(0, RETINAFACE.KEEP_TOP_K);
 };
 
 /**
@@ -463,7 +460,7 @@ const formatDetectionResults = (
  */
 export const detectFacesRetinaFace = async (
   base64: string,
-  visThreshold: number = VIS_THRESHOLD
+  visThreshold: number = RETINAFACE.VIS_THRESHOLD
 ): Promise<RetinaFaceDetection[]> => {
   if (!retinaSession) {
     throw new Error("RetinaFace model not initialized");

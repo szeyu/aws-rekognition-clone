@@ -4,7 +4,7 @@ import { detectAllFacesWithRetinaFace } from "../embedding";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { sendErrorResponse, validateBase64Image } from "../utils/responseHelpers";
-import { getDefaultConfidenceThreshold } from "../config/constants";
+import { getDefaultConfidenceThreshold, PATHS } from "../config/constants";
 
 export interface FaceDetectionResponse {
   faces: Array<{
@@ -104,7 +104,7 @@ export const detectFaces = async (req: Request, res: Response) => {
 
     // Save cropped faces if requested
     if (save_crops && faces.length > 0) {
-      const outputDir = path.join("output", "cropped_faces");
+      const outputDir = PATHS.CROPPED_FACES_DIR;
 
       // Clear and recreate output directory
       try {

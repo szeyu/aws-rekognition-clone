@@ -18,7 +18,15 @@ export const RETINAFACE_STRIDES = [8, 16, 32] as const;
 export const DEFAULT_CONFIDENCE_THRESHOLD = 0.6;
 export const DEFAULT_NMS_THRESHOLD = 0.4;
 export const DEFAULT_VIS_THRESHOLD = 0.6;
-export const RETINAFACE_CONFIDENCE_THRESHOLD = 0.02;
+
+// RetinaFace Detection Parameters
+export const RETINAFACE = {
+  CONFIDENCE_THRESHOLD: 0.02, // Initial detection threshold before filtering
+  NMS_THRESHOLD: 0.4,         // Non-Maximum Suppression threshold
+  VIS_THRESHOLD: 0.8,         // Final visibility threshold (can be overridden by env var)
+  TOP_K: 5000,                // Maximum detections to keep before NMS
+  KEEP_TOP_K: 750,            // Maximum detections to keep after NMS
+} as const;
 
 // Directory Paths
 export const PATHS = {

@@ -4,7 +4,7 @@ import { drawBoundingBoxes } from "../utils/visualizationUtils";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { sendErrorResponse, validateBase64Image } from "../utils/responseHelpers";
-import { getDefaultConfidenceThreshold } from "../config/constants";
+import { getDefaultConfidenceThreshold, PATHS } from "../config/constants";
 
 /**
  * Visualize faces endpoint - Returns image with bounding boxes drawn and saves to output folder
@@ -65,7 +65,7 @@ export const visualizeFaces = async (req: Request, res: Response) => {
 
     // Save to file if requested
     if (save_to_file) {
-      const outputDir = path.join("output");
+      const outputDir = PATHS.OUTPUT_DIR;
 
       // Create output directory
       await fs.mkdir(outputDir, { recursive: true });
