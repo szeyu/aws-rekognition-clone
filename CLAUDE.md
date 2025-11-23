@@ -78,12 +78,11 @@ make lint-fix         # Auto-fix TypeScript code style issues
 **Service Layer**:
 - `src/services/imageService.ts`: Image I/O, path resolution, face detection orchestration
 - `src/services/dbService.ts`: Vector insert/search using pgvector operators (`<->` for distance, `<=>` for cosine)
-- `src/services/faceDetectionService.ts`: Face detection workflows, bounding box calculations
 - `src/services/cropFacesService.ts`: Extract cropped face images from detected bounding boxes
 - `src/services/outputService.ts`: Saves retrieved images to `output/{id}.{ext}`
 
 **Utils Layer** (`src/utils/`):
-- `imageUtils.ts`: Image manipulation (crop, dimensions, format detection)
+- `imageUtils.ts`: Image manipulation (crop, dimensions, format detection, base64-to-Jimp conversion)
 - `boundingBoxUtils.ts`: Coordinate conversions (normalized ↔ pixel bounding boxes)
 - `nmsUtils.ts`: Non-Maximum Suppression for filtering overlapping face detections
 - `visualizationUtils.ts`: Draw bounding boxes and landmarks on images
@@ -110,14 +109,27 @@ make lint-fix         # Auto-fix TypeScript code style issues
 - All face-processing endpoints throw `{code: "NO_FACE"}` errors → Returns `{"error": "no_face_detected"}` (400)
 - Face detection configured to reject images without faces (e.g., `examples/box.jpeg`)
 
-### API Input Format
-- **All endpoints accept base64-encoded images** - no file paths needed!
+### API Input Format & Storage
+
+**Base64-Only Design:**
+- All endpoints accept base64-encoded images (no file paths)
 - Scripts handle file path → base64 conversion automatically
-- API is fully stateless and doesn't need file system access
-- ONNX models expected at `models/arcface.onnx` and `models/retinaface_resnet50.onnx`
-- Uploaded images stored in `project_data/` directory (temporary - will migrate to S3/MinIO)
-- Retrieved images saved to `output/{id}.{ext}` (temporary - will migrate to S3/MinIO)
-- **Docker does NOT mount home directory** - API accepts base64 only!
+- API is fully stateless and portable across environments
+- **Why base64?** Docker containers don't mount home directories; base64 makes the API truly portable
+
+**ONNX Models:**
+- ArcFace: `models/arcface.onnx` (face embeddings)
+- RetinaFace: `models/retinaface_resnet50.onnx` (face detection)
+- Downloaded via `make models` from HuggingFace/Google Storage
+
+**Storage Directories:**
+- `project_data/` - Persistent storage for uploaded images (mimics S3/OSS bucket)
+  - Files saved as `{uuid}.jpg`, paths stored in database
+  - Future: Migrate to S3/MinIO for cloud storage
+- `output/cropped_faces/` - Temporary directory for cropped faces during processing
+  - Cleared on each multi-face processing request
+- `output/{id}.{ext}` - Retrieved images from GET `/api/image/:id`
+  - Temporary location for user downloads
 
 ## Testing
 Use example images in `examples/` folder:
@@ -149,10 +161,15 @@ All scripts accept optional API URL as last parameter (default: http://localhost
 - `FACE_DETECTION_CONFIDENCE_THRESHOLD`: Face detection confidence threshold 0.0-1.0 (default: 0.8)
 - `PROJECT_DATA_DIR`: Directory for uploaded images (default: `project_data`)
 
-**RetinaFace Constants** (`src/retinaface.ts`):
-- `CONFIDENCE_THRESHOLD`: 0.02 (initial detection threshold, filtered by VIS_THRESHOLD later)
-- `VIS_THRESHOLD`: 0.6 (final visibility threshold, overridden by env var)
-- `NMS_THRESHOLD`: 0.4 (Non-Maximum Suppression for overlapping boxes)
+**Configuration Constants** (`src/config/constants.ts`):
+- `RETINAFACE.CONFIDENCE_THRESHOLD`: 0.02 (initial detection threshold, filtered by VIS_THRESHOLD later)
+- `RETINAFACE.VIS_THRESHOLD`: 0.8 (final visibility threshold, overridden by env var FACE_DETECTION_CONFIDENCE_THRESHOLD)
+- `RETINAFACE.NMS_THRESHOLD`: 0.4 (Non-Maximum Suppression for overlapping boxes)
+- `RETINAFACE.TOP_K`: 5000 (maximum detections before NMS)
+- `RETINAFACE.KEEP_TOP_K`: 750 (maximum detections after NMS)
+- `PATHS.OUTPUT_DIR`: "output" (directory for visualized/retrieved images)
+- `PATHS.CROPPED_FACES_DIR`: "output/cropped_faces" (directory for cropped face images)
+- `PATHS.PROJECT_DATA_DIR`: process.env.PROJECT_DATA_DIR || "project_data" (uploaded images storage)
 - Image sizes: 640x640 (mobile0.25) or 840x840 (resnet50)
 
 ## Database Notes

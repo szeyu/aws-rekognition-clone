@@ -14,6 +14,113 @@ An open-source AWS Rekognition alternative - A Node.js/TypeScript API for face r
 - ✅ **Docker Support** - easy deployment with Docker Compose
 - ✅ **TypeScript** - fully typed codebase with ESLint
 
+## Architecture Overview
+
+```mermaid
+flowchart TB
+    subgraph Client["Client Layer"]
+        USER[User/Application]
+        SCRIPTS[Shell Scripts]
+    end
+
+    subgraph API["API Server (Express + TypeScript)"]
+        ROUTES[Routes Handler]
+        CONTROLLERS[Controllers]
+        SERVICES[Services Layer]
+        UTILS[Utilities]
+    end
+
+    subgraph Models["AI Models (ONNX Runtime)"]
+        RETINAFACE[RetinaFace ResNet50<br/>Face Detection + Landmarks]
+        ARCFACE[ArcFace ResNet100<br/>512-dim Embeddings]
+    end
+
+    subgraph Storage["Storage Layer"]
+        DB[(PostgreSQL + pgvector<br/>Vector Embeddings)]
+        FILES[File System<br/>project_data/]
+    end
+
+    USER -->|Base64 Image| ROUTES
+    SCRIPTS -->|Base64 Image| ROUTES
+    ROUTES --> CONTROLLERS
+    CONTROLLERS --> SERVICES
+
+    SERVICES -->|Detect Faces| RETINAFACE
+    SERVICES -->|Generate Embeddings| ARCFACE
+    SERVICES --> UTILS
+
+    RETINAFACE -->|Bounding Boxes + Landmarks| SERVICES
+    ARCFACE -->|512-dim Vector| SERVICES
+
+    SERVICES -->|Store Vector| DB
+    SERVICES -->|Store Image| FILES
+    SERVICES -->|Vector Search| DB
+
+    DB -->|Similar Faces| SERVICES
+    FILES -->|Image Data| SERVICES
+
+    SERVICES --> CONTROLLERS
+    CONTROLLERS -->|JSON Response| USER
+
+    style RETINAFACE fill:#e1f5ff
+    style ARCFACE fill:#e1f5ff
+    style DB fill:#fff4e1
+    style FILES fill:#fff4e1
+```
+
+### Data Flow Example: Store Embedding
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API
+    participant RetinaFace
+    participant ArcFace
+    participant PostgreSQL
+    participant FileSystem
+
+    User->>API: POST /api/store_embedding<br/>{image_base64}
+    API->>RetinaFace: Detect faces in image
+    RetinaFace-->>API: Bounding boxes + landmarks
+
+    loop For each detected face
+        API->>API: Crop face region
+        API->>ArcFace: Generate embedding
+        ArcFace-->>API: 512-dim vector
+        API->>FileSystem: Save cropped face
+        FileSystem-->>API: File path
+        API->>PostgreSQL: INSERT vector + path
+        PostgreSQL-->>API: UUID
+    end
+
+    API-->>User: {total_faces, stored, results}
+```
+
+### Data Flow Example: Search Similar Faces
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API
+    participant RetinaFace
+    participant ArcFace
+    participant PostgreSQL
+
+    User->>API: POST /api/search<br/>{image_base64, top_k}
+    API->>RetinaFace: Detect faces
+    RetinaFace-->>API: Bounding boxes
+
+    loop For each detected face
+        API->>API: Crop face region
+        API->>ArcFace: Generate query embedding
+        ArcFace-->>API: 512-dim vector
+        API->>PostgreSQL: Vector similarity search<br/>(cosine distance)
+        PostgreSQL-->>API: Top K similar faces
+    end
+
+    API-->>User: {total_faces, results[]}
+```
+
 ## Requirements
 
 - Node.js 24+
