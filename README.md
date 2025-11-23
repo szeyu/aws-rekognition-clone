@@ -1,6 +1,6 @@
-# AWS Rekognition Clone
+# FaceVector Engine
 
-An open-source AWS Rekognition alternative - A Node.js/TypeScript API for face recognition and analysis using ArcFace embeddings, RetinaFace face detection with landmarks, and PostgreSQL with pgvector for similarity search.
+A production-ready face recognition and vector similarity search engine. Built with Node.js/TypeScript, this API provides face detection, recognition, and matching using state-of-the-art ArcFace embeddings, RetinaFace detection, and PostgreSQL pgvector for efficient similarity search.
 
 ## Features
 
@@ -516,11 +516,11 @@ This confirms that the RetinaFace face detector correctly rejects images without
 
 ## Technology Stack
 
-- **Face Detection**: RetinaFace ResNet50 model for detecting faces with 5 facial landmarks (eyes, nose, mouth)
-- **Face Recognition**: ArcFace ResNet100 model for generating 512-dimensional face embeddings
+- **Face Detection**: RetinaFace ResNet50 - Detects faces with 5 facial landmarks (eyes, nose, mouth)
+- **Face Recognition**: ArcFace ResNet100 - Generates 512-dimensional face embeddings
 - **Vector Search**: PostgreSQL with pgvector extension for efficient similarity search
-- **Image Processing**: Jimp for image manipulation and ONNX Runtime for model inference
-- **API Framework**: Express.js with TypeScript
+- **Image Processing**: Jimp for image manipulation, ONNX Runtime for ML inference
+- **API Framework**: Express.js with TypeScript, Zod validation
 
 ## Notes
 

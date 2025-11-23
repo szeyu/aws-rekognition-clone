@@ -47,7 +47,7 @@ db:
 	docker compose -f docker-compose.yml up -d db
 
 # Run the API locally
-run: install-dev db
+run: install-dev models db
 	npm run dev
 
 # Build and start the full stack (API + Postgres) with Docker Compose

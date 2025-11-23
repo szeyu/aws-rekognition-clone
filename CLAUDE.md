@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AWS Rekognition Clone - An open-source alternative to AWS Rekognition. A Node.js/TypeScript face recognition system using ArcFace embeddings for face recognition, RetinaFace for face detection with landmarks, and PostgreSQL with pgvector extension for efficient vector similarity search.
+FaceVector Engine - A production-ready face recognition and vector similarity search engine. A Node.js/TypeScript system using ArcFace embeddings for face recognition, RetinaFace for face detection with landmarks, and PostgreSQL with pgvector extension for efficient vector similarity search.
 
 ## Development Commands
 

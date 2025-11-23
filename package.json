@@ -1,7 +1,7 @@
 {
-  "name": "aws-rekognition-clone",
+  "name": "facevector-engine",
   "version": "1.0.0",
-  "description": "AWS Rekognition clone - Face recognition and analysis API using ONNX models (ArcFace, RetinaFace) with PostgreSQL pgvector",
+  "description": "FaceVector Engine - Face recognition and vector similarity search API using ArcFace embeddings, RetinaFace detection, and PostgreSQL pgvector",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
