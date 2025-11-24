@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import express from "express";
 import bodyParser from "body-parser";
 import { connectDB } from "./db";
