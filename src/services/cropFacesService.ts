@@ -3,9 +3,9 @@ import path from "path";
 import { detectAllFacesWithRetinaFace } from "../embedding";
 import { cropImageRegion } from "../utils/imageUtils";
 import { NoFaceDetectedError } from "../utils/errors";
-import { PATHS } from "../config/constants";
 
-const CROPPED_FACES_DIR = path.join(process.cwd(), PATHS.CROPPED_FACES_DIR);
+// Use /tmp inside Docker for ephemeral temporary files
+const CROPPED_FACES_DIR = "/tmp/facevector/cropped_faces";
 
 /**
  * Clear all files in the cropped_faces directory

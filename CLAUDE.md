@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 FaceVector Engine - A production-ready face recognition and vector similarity search engine. A Node.js/TypeScript system using ArcFace embeddings for face recognition, RetinaFace for face detection with landmarks, and PostgreSQL with pgvector extension for efficient vector similarity search.
 
+**API Design**: Two-step workflow for face recognition:
+1. **Detect**: Upload image → Detect faces → Get face_id
+2. **Enroll or Recognize**: Use face_id to enroll customer or recognize against enrolled database
+
 ## Development Commands
 
 ### Setup
@@ -53,7 +57,10 @@ make lint-fix         # Auto-fix TypeScript code style issues
 1. **Server startup** (`src/server.ts`): Initialize DB connection → Load ONNX models (ArcFace + RetinaFace) → Start Express server
 2. **Face detection** (`src/retinaface.ts`, `src/embedding.ts`): RetinaFace detects faces with configurable thresholds
 3. **Embedding generation** (`src/embedding.ts`): ArcFace generates 512-dim vectors from 112x112 RGB images
-4. **Storage** (`src/db.ts`, `src/services/dbService.ts`): PostgreSQL with pgvector extension for vector similarity search
+4. **Storage** (`src/db.ts`): PostgreSQL with pgvector extension for vector similarity search
+   - `detected_faces` table: Face metadata and file paths from detection
+   - `enrolled_customers` table: Customer info with face embeddings for recognition
+   - `face_embeddings` table: Legacy table (kept for backward compatibility)
 
 ### Key Components
 
@@ -62,7 +69,7 @@ make lint-fix         # Auto-fix TypeScript code style issues
 - `detectAllFacesWithRetinaFace(base64)` (`src/embedding.ts`): RetinaFace inference returning all detected faces with bounding boxes
   - Input: 640x640 (mobile) or 840x840 (resnet50) resized image
   - Multi-scale detection with strides [8, 16, 32]
-  - Default confidence threshold: 0.6 (VIS_THRESHOLD), configurable via env var FACE_DETECTION_CONFIDENCE_THRESHOLD
+  - Default confidence threshold: 0.8 (VIS_THRESHOLD), configurable via env var FACE_DETECTION_CONFIDENCE_THRESHOLD
   - NMS (Non-Maximum Suppression) threshold: 0.4 to filter overlapping boxes
   - Returns array of faces sorted by area (largest first) with landmarks (eyes, nose, mouth)
 - `preprocessImage(base64)` (`src/embedding.ts`): Resize to 112x112, normalize to [-1, 1] per channel
@@ -71,65 +78,105 @@ make lint-fix         # Auto-fix TypeScript code style issues
 
 **Database Layer** (`src/db.ts`):
 - `connectDB()`: Creates database if missing, enables pgcrypto + vector extensions
-- Table schema: `face_embeddings(id uuid, embedding vector(512), image_path text, created_at timestamptz)`
+- Table schemas:
+  - `detected_faces(id uuid, original_image_path text, face_image_path text, identifier text, bounding_box jsonb, confidence float, created_at timestamptz)`
+  - `enrolled_customers(id uuid, face_id uuid, customer_identifier text, customer_name text, customer_metadata jsonb, embedding vector(512), created_at timestamptz)`
+  - `face_embeddings(id uuid, embedding vector(512), image_path text, created_at timestamptz)` - Legacy table
+- ivfflat index on `enrolled_customers.embedding` for fast similarity search
 - Handles collation version mismatches (suggests `make clean` if detected)
-- Images stored as files in `project_data/` directory (mimics S3/OSS), paths stored in DB
+- Images stored in MinIO S3 object storage, S3 keys stored in `original_image_path` and `face_image_path` columns
 
 **Service Layer**:
-- `src/services/imageService.ts`: Image I/O, path resolution, face detection orchestration
-- `src/services/dbService.ts`: Vector insert/search using pgvector operators (`<->` for distance, `<=>` for cosine)
+- `src/services/faceDetectionService.ts`: Detect faces, crop, and store metadata
+  - `detectAndStoreFaces()`: Main detection workflow
+  - Uploads original images to MinIO S3: `originals/{uuid}.jpg`
+  - Uploads cropped faces to MinIO S3: `faces/{face_id}.jpg`
+  - Stores S3 keys (not file paths) in database
+- `src/services/s3Service.ts`: MinIO S3 storage service
+  - `uploadImage()`: Upload image buffer to S3
+  - `downloadImage()`: Download image from S3 as buffer
+  - `deleteImage()`: Delete image from S3
+  - `ensureBucketExists()`: Create bucket if missing
+- `src/services/imageService.ts`: Legacy service for base64 image processing
 - `src/services/cropFacesService.ts`: Extract cropped face images from detected bounding boxes
-- `src/services/outputService.ts`: Saves retrieved images to `output/{id}.{ext}`
+- `src/services/dbService.ts`: Legacy vector insert/search operations
 
 **Utils Layer** (`src/utils/`):
-- `imageUtils.ts`: Image manipulation (crop, dimensions, format detection, base64-to-Jimp conversion)
+- `imageUtils.ts`: Image manipulation
+  - `base64ToJimp()`: Convert base64 to Jimp instance
+  - `bufferToJimp()`: Convert Buffer (from multer) to Jimp instance
+  - `jimpToBase64()`: Convert Jimp to base64
+  - `scaleDownImage()`: Scale down images for performance (max 1920px)
+  - `cropImageRegion()`: Crop face regions
 - `boundingBoxUtils.ts`: Coordinate conversions (normalized ↔ pixel bounding boxes)
 - `nmsUtils.ts`: Non-Maximum Suppression for filtering overlapping face detections
 - `visualizationUtils.ts`: Draw bounding boxes and landmarks on images
+- `responseHelpers.ts`: Standardized error responses
+
+**Middleware**:
+- `src/middleware/upload.ts`: Multer configuration for multipart file uploads
+  - Memory storage for file buffers
+  - Accepts PNG, JPG, WEBP (max 10MB)
+  - File type validation
 
 **Controllers** (`src/controllers/`):
-- `faceDetectionController.ts`: `/detect-faces` - face detection with bounding boxes
-- `faceVisualizationController.ts`: `/visualize-faces` - face detection with visual output
-- `cropFacesController.ts`: `/crop-faces` - extract cropped face images
-- `embeddingController.ts`: `/store_embedding`, `/compare`, `/search` - face recognition and similarity
-- `imageController.ts`: `/image/:id`, `/list`, `/item/:id` - CRUD operations
+- `facesController.ts`: Main API endpoints
+  - `detectFaces()`: POST `/faces/detect` - Detect faces, store crops and metadata
+  - `getFaceImage()`: GET `/faces/:face_id` - Retrieve stored face image
+  - `enrollFace()`: POST `/faces/enroll` - Enroll customer with face embedding
+  - `recognizeFace()`: POST `/faces/recognize` - Recognize customer by face similarity
+- `managementController.ts`: Management/admin endpoints
+  - `listDetectedFaces()`: GET `/management/faces` - Paginated list of detected faces
+  - `listEnrolledCustomers()`: GET `/management/customers` - Paginated list of customers
+  - `getCustomerDetails()`: GET `/management/customers/:id` - Customer details
+  - `getStats()`: GET `/management/stats` - DB stats (includes orphaned_faces count)
+  - `deleteOrphanedFaces()`: DELETE `/management/faces/orphaned` - Delete orphaned faces + S3 cleanup
+  - `deleteDetectedFace()`: DELETE `/management/faces/:id` - Delete specific face + S3 cleanup
+  - `deleteEnrolledCustomer()`: DELETE `/management/customers/:id` - Delete customer
+- Legacy controllers (backward compatibility):
+  - `faceDetectionController.ts`, `faceVisualizationController.ts`, `cropFacesController.ts`, `embeddingController.ts`, `imageController.ts`
 
 **Routes** (`src/routes.ts`):
-- POST `/api/detect-faces` - Accepts `image_base64` - Detect faces with bounding boxes and landmarks
-- POST `/api/visualize-faces` - Accepts `image_base64` - Return image with drawn bounding boxes/landmarks
-- POST `/api/crop-faces` - Accepts `image_base64` - Extract cropped face images from detected faces
-- POST `/api/store_embedding` - Accepts `image_base64` - Detect face → Generate embedding → Store with image
-- POST `/api/compare` - Accepts `image_base64_A`, `image_base64_B` - Compare two images (cosine similarity + euclidean distance)
-- POST `/api/search` - Accepts `image_base64` - Vector similarity search (top_k results)
-- GET `/api/image/:id` - Retrieve and save image to output/
-- GET `/api/list?limit=N` - List stored embeddings
-- DELETE `/api/item/:id` - Delete embedding by UUID
+- POST `/api/faces/detect` - Upload image → Detect faces → Store → Return face_id array
+- GET `/api/faces/:face_id` - Retrieve face image
+- POST `/api/faces/enroll` - Enroll customer with embedding
+- POST `/api/faces/recognize` - Recognize customer by similarity
+- GET `/api/management/faces` - List detected faces (pagination)
+- GET `/api/management/customers` - List customers (pagination)
+- GET `/api/management/customers/:id` - Get customer details
+- GET `/api/management/stats` - Database statistics
+- DELETE `/api/management/faces/orphaned` - Delete orphaned faces (not enrolled)
+- DELETE `/api/management/faces/:id` - Delete specific face
+- DELETE `/api/management/customers/:id` - Delete customer
 
 ### Error Handling
 - All face-processing endpoints throw `{code: "NO_FACE"}` errors → Returns `{"error": "no_face_detected"}` (400)
 - Face detection configured to reject images without faces (e.g., `examples/box.jpeg`)
+- Standardized error responses via `responseHelpers.sendErrorResponse()`
 
 ### API Input Format & Storage
 
-**Base64-Only Design:**
-- All endpoints accept base64-encoded images (no file paths)
-- Scripts handle file path → base64 conversion automatically
-- API is fully stateless and portable across environments
-- **Why base64?** Docker containers don't mount home directories; base64 makes the API truly portable
+**Multipart Upload Design:**
+- Primary API accepts multipart form-data (actual file uploads)
+- Scripts handle file path → multipart conversion automatically
+- Images automatically scaled down (max 1920px) for performance
+- Supports PNG, JPG, WEBP formats (max 10MB per file)
+- API is stateless and production-ready
 
 **ONNX Models:**
 - ArcFace: `models/arcface.onnx` (face embeddings)
 - RetinaFace: `models/retinaface_resnet50.onnx` (face detection)
 - Downloaded via `make models` from HuggingFace/Google Storage
 
-**Storage Directories:**
-- `project_data/` - Persistent storage for uploaded images (mimics S3/OSS bucket)
-  - Files saved as `{uuid}.jpg`, paths stored in database
-  - Future: Migrate to S3/MinIO for cloud storage
-- `output/cropped_faces/` - Temporary directory for cropped faces during processing
-  - Cleared on each multi-face processing request
-- `output/{id}.{ext}` - Retrieved images from GET `/api/image/:id`
-  - Temporary location for user downloads
+**Storage Architecture:**
+- **MinIO S3 Object Storage** (bucket: `facevector-engine`):
+  - `originals/{uuid}.jpg` - Original uploaded images
+  - `faces/{face_id}.jpg` - Cropped face images
+  - S3 keys stored in `detected_faces` table columns
+  - Access MinIO Console at http://localhost:9001
+- **Temporary Files** (ephemeral, inside Docker):
+  - `/tmp/facevector/cropped_faces/` - Temporary face crops during processing
+  - Auto-cleaned on container restart, no volume mount needed
 
 ## Testing
 Use example images in `examples/` folder:
@@ -138,20 +185,42 @@ Use example images in `examples/` folder:
 
 Example scripts in `scripts/` (run `make chmod-scripts` first):
 ```bash
-./scripts/detect-faces.sh examples/face1.jpeg              # Detect faces with bounding boxes
-./scripts/visualize-faces.sh examples/face1.jpeg           # Visualize faces with drawn boxes
-./scripts/crop-faces.sh examples/face1.jpeg                # Extract cropped face images
-./scripts/store-embedding.sh examples/face1.jpeg           # Store face embedding
-./scripts/compare.sh examples/face1.jpeg examples/face2.jpeg  # Compare two faces
-./scripts/search.sh examples/face1.jpeg 5                  # Search similar faces
-./scripts/list.sh 10                                       # List stored embeddings
-./scripts/get-image.sh <uuid>                              # Retrieve image by ID
-./scripts/delete.sh <uuid>                                 # Delete embedding
+# Main workflow
+./scripts/faces-detect.sh examples/face1.jpeg [identifier]
+./scripts/faces-get-image.sh <face_id>
+./scripts/faces-enroll.sh <face_id> <customer_id> [name]
+./scripts/faces-recognize.sh <face_id>
+
+# Management
+./scripts/management-list-faces.sh
+./scripts/management-list-customers.sh
+./scripts/management-get-customer.sh <customer_id>
+./scripts/management-stats.sh
+./scripts/management-delete-orphaned.sh              # Delete orphaned faces
+./scripts/management-delete-face.sh <face_id>
+./scripts/management-delete-customer.sh <customer_id>
 ```
 
 All scripts accept optional API URL as last parameter (default: http://localhost:3000).
 
-**Note:** Scripts accept file paths for convenience, but internally convert them to base64 before calling the API. The API itself only accepts base64-encoded images!
+**Workflow Example:**
+```bash
+# 1. Detect face and get face_id
+./scripts/faces-detect.sh examples/face1.jpeg CUST001
+# Response: [{"face_id": "abc-123...", ...}]
+
+# 2. Enroll the customer
+./scripts/faces-enroll.sh abc-123... CUST001 "John Doe"
+# Response: {"customer_id": "xyz-789...", ...}
+
+# 3. Later, detect a new face
+./scripts/faces-detect.sh examples/face2.jpeg
+# Response: [{"face_id": "def-456...", ...}]
+
+# 4. Recognize who it is
+./scripts/faces-recognize.sh def-456...
+# Response: [{"customer_identifier": "CUST001", "confidence_score": 0.98, ...}]
+```
 
 ## Configuration
 
@@ -159,7 +228,15 @@ All scripts accept optional API URL as last parameter (default: http://localhost
 - `DATABASE_URL`: PostgreSQL connection string (default: `postgres://postgres:postgres@localhost:5432/face_db`)
 - `PORT`: API server port (default: 3000)
 - `FACE_DETECTION_CONFIDENCE_THRESHOLD`: Face detection confidence threshold 0.0-1.0 (default: 0.8)
-- `PROJECT_DATA_DIR`: Directory for uploaded images (default: `project_data`)
+- **MinIO S3 Configuration:**
+  - `MINIO_ROOT_USER`: MinIO admin username (default: minioadmin)
+  - `MINIO_ROOT_PASSWORD`: MinIO admin password (default: minioadmin123)
+  - `S3_ENDPOINT`: S3 endpoint URL (default: http://localhost:9000 for local, http://minio:9000 inside Docker)
+  - `S3_BUCKET`: S3 bucket name (default: facevector-engine)
+  - `S3_ACCESS_KEY`: S3 access key (default: minioadmin)
+  - `S3_SECRET_KEY`: S3 secret key (default: minioadmin123)
+  - `S3_REGION`: S3 region (default: us-east-1)
+  - `S3_FORCE_PATH_STYLE`: Use path-style URLs for MinIO (default: true)
 
 **Configuration Constants** (`src/config/constants.ts`):
 - `RETINAFACE.CONFIDENCE_THRESHOLD`: 0.02 (initial detection threshold, filtered by VIS_THRESHOLD later)
@@ -167,13 +244,39 @@ All scripts accept optional API URL as last parameter (default: http://localhost
 - `RETINAFACE.NMS_THRESHOLD`: 0.4 (Non-Maximum Suppression for overlapping boxes)
 - `RETINAFACE.TOP_K`: 5000 (maximum detections before NMS)
 - `RETINAFACE.KEEP_TOP_K`: 750 (maximum detections after NMS)
-- `PATHS.OUTPUT_DIR`: "output" (directory for visualized/retrieved images)
-- `PATHS.CROPPED_FACES_DIR`: "output/cropped_faces" (directory for cropped face images)
-- `PATHS.PROJECT_DATA_DIR`: process.env.PROJECT_DATA_DIR || "project_data" (uploaded images storage)
+- `PATHS.TEMP_DIR`: "/tmp/facevector" (temporary processing inside Docker)
+- `PATHS.CROPPED_FACES_DIR`: "/tmp/facevector/cropped_faces" (temporary cropped faces)
+- `PATHS.MODELS_DIR`: "models" (ONNX models directory)
+- `S3_CONFIG.BUCKET`: process.env.S3_BUCKET || "facevector-engine"
+- `S3_CONFIG.ORIGINALS_PREFIX`: "originals/" (S3 prefix for original images)
+- `S3_CONFIG.FACES_PREFIX`: "faces/" (S3 prefix for cropped face images)
 - Image sizes: 640x640 (mobile0.25) or 840x840 (resnet50)
 
 ## Database Notes
 - DATABASE_URL env var required (format: `postgres://user:pass@host:port/dbname`)
 - Database auto-created on first connection if missing
 - pgvector extension required for vector operations
+- ivfflat index created on `enrolled_customers.embedding` for fast similarity search
 - If collation errors occur during `make up`, run `make clean` then `make up` to reset volumes
+
+## Dependencies
+
+**Core Runtime:**
+- `express`: Web framework
+- `pg`: PostgreSQL client
+- `pgvector`: PostgreSQL vector extension client
+- `onnxruntime-node`: ML model inference
+- `jimp`: Image manipulation
+- `multer`: Multipart file upload handling
+- `@types/multer`: TypeScript types for multer
+
+**Development:**
+- `typescript`: TypeScript compiler
+- `tsx`: TypeScript execution for development
+- `eslint`: Code linting
+- `@types/*`: TypeScript type definitions
+
+**Removed (no longer used):**
+- `uuid`: Replaced with Node.js built-in `crypto.randomUUID()`
+- `body-parser`: Replaced with Express built-in `express.json()`
+- `zod`: Validation removed (now done at application level)

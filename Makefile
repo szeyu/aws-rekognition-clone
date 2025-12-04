@@ -1,7 +1,7 @@
 include .env
 export
 
-.PHONY: install install-dev models dev db up down logs clean chmod-scripts reset run lint lint-fix test
+.PHONY: install install-dev models dev db up-db up-minio up down logs clean chmod-scripts reset run lint lint-fix test test-integration test-management
 
 # Install production Node dependencies only (for Docker/production)
 install:
@@ -19,9 +19,17 @@ lint: install-dev
 lint-fix: install-dev
 	npm run lint:fix
 
+# Run integration test only
+test-integration: install-dev models up-db up-minio
+	S3_ENDPOINT=http://localhost:9000 npm test -- src/__tests__/integration.test.ts
+
+# Run management test only
+test-management: install-dev models up-db up-minio
+	S3_ENDPOINT=http://localhost:9000 npm test -- src/__tests__/management.test.ts
+
 # Run all tests (unit tests + integration tests)
-test: install-dev
-	npm test
+test: install-dev models up-db up-minio
+	S3_ENDPOINT=http://localhost:9000 npm test
 
 # Download ONNX models locally into models/ (only if they don't exist)
 models:
@@ -42,12 +50,17 @@ models:
 	fi
 	@echo "✓ All models ready"
 
+
 # Launch only the Postgres service via Docker Compose
-db:
+up-db:
 	docker compose -f docker-compose.yml up -d db
 
-# Run the API locally
-run: install-dev models db
+# Launch only the MinIO service via Docker Compose
+up-minio:
+	docker compose -f docker-compose.yml up -d minio
+
+# Run the API locally (requires db and minio running)
+run: install-dev models up-db up-minio
 	npm run dev
 
 # Build and start the full stack (API + Postgres) with Docker Compose

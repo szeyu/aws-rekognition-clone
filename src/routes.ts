@@ -1,35 +1,32 @@
 import express from "express";
-import { storeEmbedding, compareEmbeddings, searchEmbeddings } from "./controllers/embeddingController";
-import { listImages, getImage, deleteImage } from "./controllers/imageController";
-import { detectFaces } from "./controllers/faceDetectionController";
-import { visualizeFaces } from "./controllers/faceVisualizationController";
-import { cropFaces } from "./controllers/cropFacesController";
-import { validateBody } from "./middleware/validation";
+import { detectFaces, getFaceImage, enrollFace, recognizeFace } from "./controllers/facesController";
 import {
-  detectFacesSchema,
-  visualizeFacesSchema,
-  cropFacesSchema,
-  storeEmbeddingSchema,
-  compareEmbeddingsSchema,
-  searchEmbeddingsSchema,
-} from "./schemas/requestSchemas";
+  listDetectedFaces,
+  listEnrolledCustomers,
+  getCustomerDetails,
+  deleteDetectedFace,
+  deleteEnrolledCustomer,
+  deleteOrphanedFaces,
+  getStats,
+} from "./controllers/managementController";
+import { upload } from "./middleware/upload";
 
 const router = express.Router();
 
-// Face detection and analysis (with validation)
-router.post("/detect-faces", validateBody(detectFacesSchema), detectFaces);
-router.post("/visualize-faces", validateBody(visualizeFacesSchema), visualizeFaces);
-router.post("/crop-faces", validateBody(cropFacesSchema), cropFaces);
+// Stakeholder-required API endpoints
+router.post("/faces/detect", upload.single("file"), detectFaces);
+router.get("/faces/:face_id", getFaceImage);
+router.post("/faces/enroll", enrollFace);
+router.post("/faces/recognize", recognizeFace);
 
-// Face recognition endpoints (with validation)
-router.post("/store_embedding", validateBody(storeEmbeddingSchema), storeEmbedding);
-router.post("/compare", validateBody(compareEmbeddingsSchema), compareEmbeddings);
-router.post("/search", validateBody(searchEmbeddingsSchema), searchEmbeddings);
-
-// Image management
-router.get("/image/:id", getImage);
-router.get("/list", listImages);
-router.delete("/item/:id", deleteImage);
+// Management API endpoints
+router.get("/management/faces", listDetectedFaces);
+router.get("/management/customers", listEnrolledCustomers);
+router.get("/management/customers/:customer_id", getCustomerDetails);
+router.get("/management/stats", getStats);
+router.delete("/management/faces/orphaned", deleteOrphanedFaces);
+router.delete("/management/faces/:face_id", deleteDetectedFace);
+router.delete("/management/customers/:customer_id", deleteEnrolledCustomer);
 
 export default router;
 

@@ -30,10 +30,16 @@ export const RETINAFACE = {
 
 // Directory Paths
 export const PATHS = {
-  OUTPUT_DIR: "output",
-  CROPPED_FACES_DIR: "output/cropped_faces",
-  PROJECT_DATA_DIR: process.env.PROJECT_DATA_DIR || "project_data",
-  MODELS_DIR: "models",
+  TEMP_DIR: "/tmp/facevector",                          // Temporary processing inside Docker
+  CROPPED_FACES_DIR: "/tmp/facevector/cropped_faces",   // Temporary cropped faces
+  MODELS_DIR: "models",                                  // ONNX models directory
+} as const;
+
+// S3 Storage Configuration
+export const S3_CONFIG = {
+  BUCKET: process.env.S3_BUCKET || "facevector-engine",
+  ORIGINALS_PREFIX: "originals/",
+  FACES_PREFIX: "faces/",
 } as const;
 
 // Model File Paths
