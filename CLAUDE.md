@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 FaceVector Engine - A production-ready face recognition and vector similarity search engine. A Node.js/TypeScript system using ArcFace embeddings for face recognition, RetinaFace for face detection with landmarks, and PostgreSQL with pgvector extension for efficient vector similarity search.
 
+**📚 Technical Documentation:** See [TECHNICAL_DETAILS.md](TECHNICAL_DETAILS.md) for comprehensive technical documentation including image processing pipelines, coordinate transformations, model inference workflows, and performance optimizations.
+
 **API Design**: Two-step workflow for face recognition:
 1. **Detect**: Upload image → Detect faces → Get face_id
 2. **Enroll or Recognize**: Use face_id to enroll customer or recognize against enrolled database

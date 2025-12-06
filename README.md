@@ -2,6 +2,8 @@
 
 A production-ready face recognition and vector similarity search engine. Built with Node.js/TypeScript, this API provides a two-step workflow for face detection, customer enrollment, and recognition using state-of-the-art ArcFace embeddings, RetinaFace detection, and PostgreSQL pgvector for efficient similarity search.
 
+> 📚 **For detailed technical documentation**, see [TECHNICAL_DETAILS.md](TECHNICAL_DETAILS.md) - comprehensive guide covering image processing pipelines, coordinate transformations, model inference, and performance optimizations.
+
 ## Features
 
 - ✅ **Face Detection** - Detect faces with 5 facial landmarks using RetinaFace ResNet50
