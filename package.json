@@ -13,14 +13,15 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "body-parser": "^2.2.0",
+    "@aws-sdk/client-s3": "^3.940.0",
+    "@aws-sdk/lib-storage": "^3.940.0",
+    "@types/multer": "^2.0.0",
     "express": "^5.1.0",
     "jimp": "^1.6.0",
+    "multer": "^2.0.2",
     "onnxruntime-node": "^1.23.2",
     "pg": "^8.11.0",
-    "pgvector": "^0.2.1",
-    "uuid": "^13.0.0",
-    "zod": "^4.1.12"
+    "pgvector": "^0.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
@@ -29,11 +30,11 @@
     "@types/node": "^24.0.0",
     "@types/pg": "^8.11.6",
     "@types/supertest": "^6.0.2",
-    "@types/uuid": "^10.0.0",
     "eslint": "^9.17.0",
     "jest": "^30.2.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
+    "tslib": "^2.8.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.18.2",

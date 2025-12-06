@@ -105,7 +105,7 @@ const setupExtensionsAndTables = async (client: InstanceType<typeof Client>): Pr
   await client.query(`CREATE EXTENSION IF NOT EXISTS vector`);
   await pgvector.registerTypes(client);
 
-  // Create tables
+  // Create tables for existing functionality
   await client.query(`
     CREATE TABLE IF NOT EXISTS face_embeddings (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -113,6 +113,40 @@ const setupExtensionsAndTables = async (client: InstanceType<typeof Client>): Pr
       image_path text,
       created_at timestamptz DEFAULT now()
     )
+  `);
+
+  // Create table for detected faces (step 1: detection)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS detected_faces (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      original_image_path text NOT NULL,
+      face_image_path text NOT NULL,
+      identifier text,
+      bounding_box jsonb NOT NULL,
+      confidence float NOT NULL,
+      created_at timestamptz DEFAULT now()
+    )
+  `);
+
+  // Create table for enrolled customers (step 2: enrollment)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS enrolled_customers (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      face_id uuid REFERENCES detected_faces(id) ON DELETE CASCADE,
+      customer_identifier text NOT NULL,
+      customer_name text,
+      customer_metadata jsonb,
+      embedding vector(512) NOT NULL,
+      created_at timestamptz DEFAULT now()
+    )
+  `);
+
+  // Create index for faster vector similarity search
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS enrolled_customers_embedding_idx
+    ON enrolled_customers
+    USING ivfflat (embedding vector_cosine_ops)
+    WITH (lists = 100)
   `);
 
   console.log("✓ Extensions and tables ready");

@@ -6,6 +6,7 @@ import {
   ensureFaceDetected,
   saveImageToProjectData
 } from "../services/imageService";
+import { compareEmbeddings as compareEmbeddingVectors } from "../embedding";
 import { insertEmbedding, searchSimilarEmbeddings } from "../services/dbService";
 import { getCroppedFacePaths, cropAndSaveFaces } from "../services/cropFacesService";
 import { sendErrorResponse, validateBase64Image } from "../utils/responseHelpers";
@@ -88,16 +89,10 @@ export const compareEmbeddings = async (req: Request, res: Response) => {
       embeddingFromBase64(image_base64_B)
     ]);
 
-    // cosine similarity
-    const dot = embA.reduce((acc, v, i) => acc + v * embB[i], 0);
-    const normA = Math.sqrt(embA.reduce((acc, v) => acc + v * v, 0));
-    const normB = Math.sqrt(embB.reduce((acc, v) => acc + v * v, 0));
-    const cosine = dot / (normA * normB);
+    // Use the shared utility function for consistency
+    const { cosineSimilarity, euclideanDistance } = compareEmbeddingVectors(embA, embB);
 
-    // euclidean distance
-    const euclidean = Math.sqrt(embA.reduce((acc, v, i) => acc + (v - embB[i]) ** 2, 0));
-
-    res.json({ cosine, euclidean });
+    res.json({ cosine: cosineSimilarity, euclidean: euclideanDistance });
   } catch (err: unknown) {
     sendErrorResponse(res, err);
   }

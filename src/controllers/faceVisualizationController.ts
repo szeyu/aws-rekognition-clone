@@ -65,7 +65,7 @@ export const visualizeFaces = async (req: Request, res: Response) => {
 
     // Save to file if requested
     if (save_to_file) {
-      const outputDir = PATHS.OUTPUT_DIR;
+      const outputDir = PATHS.TEMP_DIR;
 
       // Create output directory
       await fs.mkdir(outputDir, { recursive: true });
