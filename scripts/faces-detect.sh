@@ -11,7 +11,7 @@ API_URL="${3:-http://localhost:3000}"
 
 if [ -z "$IMAGE_PATH" ]; then
   echo "Usage: $0 <image_path> [identifier] [api_url]"
-  echo "Example: $0 examples/face1.jpeg customer_123"
+  echo "Example: $0 examples/elon_musk_1.jpg customer_123"
   exit 1
 fi
 

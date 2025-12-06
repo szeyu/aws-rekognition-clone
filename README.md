@@ -126,11 +126,11 @@ Detect all faces in an uploaded image, store face crops and metadata, and return
 ```bash
 # Using curl
 curl -X POST http://localhost:3000/api/faces/detect \
-  -F "file=@examples/face1.jpeg" \
+  -F "file=@examples/elon_musk_1.jpg" \
   -F "identifier=customer_123"
 
 # Using script
-./scripts/faces-detect.sh examples/face1.jpeg customer_123
+./scripts/faces-detect.sh examples/elon_musk_1.jpg customer_123
 ```
 
 **Response:**
@@ -349,15 +349,15 @@ Deletes an enrolled customer record.
 
 ```bash
 # 1. Detect faces in an image
-./scripts/faces-detect.sh examples/face1.jpeg CUSTOMER_001
+./scripts/faces-detect.sh examples/elon_musk_1.jpg CUSTOMER_001
 # Response: [{"face_id": "abc-123...", ...}]
 
 # 2. Enroll the customer
-./scripts/faces-enroll.sh abc-123... CUSTOMER_001 "John Doe"
+./scripts/faces-enroll.sh abc-123... CUSTOMER_001 "Elon Musk"
 # Response: {"customer_id": "xyz-789...", ...}
 
-# 3. Later, detect face in new image
-./scripts/faces-detect.sh examples/face_new.jpeg
+# 3. Later, detect face in another image of the same person
+./scripts/faces-detect.sh examples/elon_musk_2.jpg
 # Response: [{"face_id": "def-456...", ...}]
 
 # 4. Recognize the customer
@@ -460,19 +460,33 @@ facevector-engine/
 
 ## Makefile Commands
 
+### Development
 ```bash
-make install        # Install dependencies
+make install        # Install dependencies (production only)
+make install-dev    # Install all dependencies including dev
 make models         # Download ONNX models
 make chmod-scripts  # Make scripts executable
-make db             # Start PostgreSQL
-make run            # Run API locally
-make up             # Docker Compose up
-make down           # Docker Compose down
-make clean          # Remove containers/volumes
-make reset          # Clean and rebuild
+make run            # Run API locally (starts db + minio)
 make lint           # Check code style
 make lint-fix       # Auto-fix code style
 npm run build       # Compile TypeScript
+```
+
+### Testing
+```bash
+make test-integration  # Run integration tests (full workflow)
+make test-management   # Run management API tests
+```
+
+### Docker
+```bash
+make up             # Build and start full stack (API + db + minio)
+make down           # Stop containers
+make logs           # Tail container logs
+make clean          # Remove containers and volumes
+make reset          # Clean and rebuild from scratch
+make up-db          # Start PostgreSQL only
+make up-minio       # Start MinIO only
 ```
 
 ## Troubleshooting

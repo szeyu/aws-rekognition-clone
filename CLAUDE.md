@@ -180,13 +180,15 @@ make lint-fix         # Auto-fix TypeScript code style issues
 
 ## Testing
 Use example images in `examples/` folder:
-- `face1.jpeg`, `face2.jpeg` - Valid face images for testing
+- `elon_musk_1.jpg`, `elon_musk_2.jpg` - Valid face images for testing (same person)
+- `elon_musk_trump.jpg` - Multiple faces in one image
+- `xijingping.png`, `xijingping_trump.jpeg` - Additional test images
 - `box.jpeg` - No face (for testing detection rejection)
 
 Example scripts in `scripts/` (run `make chmod-scripts` first):
 ```bash
 # Main workflow
-./scripts/faces-detect.sh examples/face1.jpeg [identifier]
+./scripts/faces-detect.sh examples/elon_musk_1.jpg [identifier]
 ./scripts/faces-get-image.sh <face_id>
 ./scripts/faces-enroll.sh <face_id> <customer_id> [name]
 ./scripts/faces-recognize.sh <face_id>
@@ -206,15 +208,15 @@ All scripts accept optional API URL as last parameter (default: http://localhost
 **Workflow Example:**
 ```bash
 # 1. Detect face and get face_id
-./scripts/faces-detect.sh examples/face1.jpeg CUST001
+./scripts/faces-detect.sh examples/elon_musk_1.jpg CUST001
 # Response: [{"face_id": "abc-123...", ...}]
 
 # 2. Enroll the customer
-./scripts/faces-enroll.sh abc-123... CUST001 "John Doe"
+./scripts/faces-enroll.sh abc-123... CUST001 "Elon Musk"
 # Response: {"customer_id": "xyz-789...", ...}
 
-# 3. Later, detect a new face
-./scripts/faces-detect.sh examples/face2.jpeg
+# 3. Later, detect face in another image of the same person
+./scripts/faces-detect.sh examples/elon_musk_2.jpg
 # Response: [{"face_id": "def-456...", ...}]
 
 # 4. Recognize who it is
