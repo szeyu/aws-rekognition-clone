@@ -27,10 +27,6 @@ test-integration: install-dev models up-db up-minio
 test-management: install-dev models up-db up-minio
 	S3_ENDPOINT=http://localhost:9000 npm test -- src/__tests__/management.test.ts
 
-# Run all tests (unit tests + integration tests)
-test: install-dev models up-db up-minio
-	S3_ENDPOINT=http://localhost:9000 npm test
-
 # Download ONNX models locally into models/ (only if they don't exist)
 models:
 	@mkdir -p models
