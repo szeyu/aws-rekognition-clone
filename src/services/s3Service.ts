@@ -1,6 +1,5 @@
 import {
   S3Client,
-  PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
   HeadBucketCommand,
@@ -130,9 +129,10 @@ class S3Service {
 
       await this.client.send(headCommand);
       console.log(`✓ S3 bucket '${this.bucket}' exists`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Bucket doesn't exist, create it
-      if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
+      const awsError = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      if (awsError.name === "NotFound" || awsError.$metadata?.httpStatusCode === 404) {
         try {
           const createCommand = new CreateBucketCommand({
             Bucket: this.bucket,
